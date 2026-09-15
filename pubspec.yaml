@@ -1,0 +1,37 @@
+# Module Description: Application package configuration and asset manifest.
+# Declares core Flutter runtime dependencies, in-app webview integration,
+# and bundles all web application assets including nested module directories.
+
+name: UniversalPOS
+description: "Standalone Offline POS Container"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_inappwebview: 6.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+dependency_overrides:
+  flutter_inappwebview_platform_interface: 1.3.0+1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/www/
+    - assets/www/css/
+    - assets/www/js/
+    - assets/www/js/lib/
+    - assets/www/js/modules/
+    - assets/www/js/modules/admin/
+    - assets/www/img/
+
+# REMARK: PUBSPEC_ADMIN_MODULES_ASSET_FIX_COMPLETE

@@ -238,11 +238,12 @@ export const AdminBackup = {
             ? "badge badge-cash"
             : "badge";
         }
-        if (this.elements.inputOtaGithubRepo && res.repo) {
-          this.elements.inputOtaGithubRepo.value = res.repo;
+        const activeRepo = res.repo || "mielglitx/OTAUpdatePOS";
+        if (this.elements.inputOtaGithubRepo) {
+          this.elements.inputOtaGithubRepo.value = activeRepo;
         }
         if (this.elements.statBackupOtaRepo) {
-          this.elements.statBackupOtaRepo.textContent = res.repo || "Default";
+          this.elements.statBackupOtaRepo.textContent = activeRepo;
         }
         if (this.elements.btnRevertOta) {
           this.elements.btnRevertOta.style.display = res.hasCustomOta ? "inline-block" : "none";
@@ -298,11 +299,10 @@ export const AdminBackup = {
       return;
     }
 
-    const repoVal = (this.elements.inputOtaGithubRepo ? this.elements.inputOtaGithubRepo.value : "").trim();
+    let repoVal = (this.elements.inputOtaGithubRepo ? this.elements.inputOtaGithubRepo.value : "").trim();
     if (!repoVal || !repoVal.includes("/")) {
-      alert("Please specify a valid GitHub repository first (e.g. Amiel/pos_app).");
-      if (this.elements.inputOtaGithubRepo) this.elements.inputOtaGithubRepo.focus();
-      return;
+      repoVal = "mielglitx/OTAUpdatePOS";
+      if (this.elements.inputOtaGithubRepo) this.elements.inputOtaGithubRepo.value = repoVal;
     }
 
     if (this.elements.btnCheckOta) {
@@ -324,9 +324,13 @@ export const AdminBackup = {
         return;
       }
 
-      if (res.updateAvailable) {
+      const hasUpdate = Boolean(res.updateAvailable || res.hasUpdate);
+
+      if (hasUpdate) {
         this.pendingOtaUpdate = res;
-        const sizeMb = res.assetSize ? ` (${(res.assetSize / (1024 * 1024)).toFixed(2)} MB)` : "";
+        const rawSize = res.assetSize || res.sizeBytes || 0;
+        const sizeMb = rawSize ? ` (${(rawSize / (1024 * 1024)).toFixed(2)} MB)` : "";
+        const assetName = res.assetName || "www.zip";
         const cleanNotes = res.releaseNotes ? res.releaseNotes.substring(0, 160).replace(/\r?\n/g, " ") : "Updates and improvements.";
         if (this.elements.otaStatusText) {
           this.elements.otaStatusText.innerHTML = `
@@ -339,7 +343,7 @@ export const AdminBackup = {
           this.elements.otaBannerTitle.textContent = `🎉 New Update Available: ${res.latestVersion}`;
         }
         if (this.elements.otaBannerDesc) {
-          this.elements.otaBannerDesc.textContent = `Asset: ${res.assetName}${sizeMb} • Click Install to apply seamlessly in the background.`;
+          this.elements.otaBannerDesc.textContent = `Asset: ${assetName}${sizeMb} • Click Install to apply seamlessly in the background.`;
         }
         if (this.elements.otaUpdateBanner) {
           this.elements.otaUpdateBanner.classList.remove("hidden");

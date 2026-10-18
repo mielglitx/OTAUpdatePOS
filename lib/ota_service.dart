@@ -220,17 +220,24 @@ class OtaManager {
         };
       }
 
-      final hasUpdate = tagName != currentVersion;
+      final cleanTag = tagName.replaceAll(RegExp(r'[^0-9.]'), '');
+      final cleanCurrent = currentVersion.replaceAll(RegExp(r'[^0-9.]'), '');
+      final hasUpdate = (cleanTag.isNotEmpty && cleanCurrent.isNotEmpty)
+          ? cleanTag != cleanCurrent
+          : tagName != currentVersion;
 
       return {
         'ok': true,
         'hasUpdate': hasUpdate,
+        'updateAvailable': hasUpdate,
         'currentVersion': currentVersion,
         'latestVersion': tagName,
         'releaseName': releaseName,
         'releaseNotes': releaseNotes,
         'downloadUrl': zipDownloadUrl,
         'sizeBytes': zipSizeBytes,
+        'assetSize': zipSizeBytes,
+        'assetName': 'www.zip',
       };
     } catch (e) {
       return {

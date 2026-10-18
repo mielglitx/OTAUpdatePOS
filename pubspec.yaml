@@ -1,8 +1,11 @@
-# Module Description: Application package configuration and asset manifest.
-# Declares core Flutter runtime dependencies, in-app webview integration,
-# and bundles all web application assets including nested module directories.
+# Module Description: Standalone Offline POS Container Package Specification
+# Manages Flutter SDK environment constraints, bundles web assets from assets/www,
+# and declares dependencies for embedded InAppWebView, native HTTP client for MikroTik
+# REST communication, Android runtime permission handling, Classic RFCOMM thermal printing,
+# FlutterBluePlus for Bluetooth Low Energy (BLE GATT) printing, and PresentationDisplays
+# for Android OS native dual-monitor hardware presentation extended screens.
 
-name: UniversalPOS
+name: universalpos
 description: "Standalone Offline POS Container"
 publish_to: "none"
 version: 1.0.0+1
@@ -14,6 +17,13 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_inappwebview: 6.1.5
+  flutter_blue_plus: ^1.34.5
+  http: ^1.2.1
+  permission_handler: ^11.3.1
+  print_bluetooth_thermal: ^1.2.5
+  presentation_displays: ^1.0.0
+  path_provider: ^2.1.2
+  archive: ^4.3.0
 
 dev_dependencies:
   flutter_test:
@@ -34,4 +44,4 @@ flutter:
     - assets/www/js/modules/admin/
     - assets/www/img/
 
-# REMARK: PUBSPEC_ADMIN_MODULES_ASSET_FIX_COMPLETE
+# REMARK: PUBSPEC_YAML_PRESENTATION_DISPLAYS_DUAL_MONITOR_COMPLETE

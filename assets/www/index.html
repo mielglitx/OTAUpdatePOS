@@ -1,10 +1,18 @@
 <!--
   Module Description: Standalone POS Register Primary HTML Markup
-  Defines the structure for the full-screen terminal login lock,
-  multi-tab administrative back-office portal, 3-column cashier register,
-  and modal dialogues. Includes configuration controls for customer calling
-  buzzers/pagers, dynamic checkout buzzer grids, and cloud backend
-  configuration generator triggers (Google Apps Script & Firebase).
+  Defines the structure for the full-screen terminal login lock (streamlined numeric
+  PIN authentication with fast startup), front-page Karinderya Fast-Service Mode toggle
+  with Administrator Passcode security verification modal, automatic silent cashier shift engagement
+  with starting drawer float calibration in Admin, multi-tab administrative back-office
+  portal with polished 2x2 card grid Karinderya Mode settings (featuring independent granular toggles
+  for auto-cash, auto-gcash, compact thermal receipts, and buzzer suppression), drawer cash reconciliation,
+  shift filter, 3-column cashier register with virtual keyboard suppression (inputmode="none") on barcode
+  scanning and on-demand soft keyboard toggle, multi-ticket park & switch tabs, category reordering drag handles,
+  dual-monitor customer display triggers, ESC/POS thermal receipt print preview modal,
+  post-payment cash change result dialog with single-code Wi-Fi voucher credentials,
+  streamlined Thermal Printer Hub with dedicated Add Printer Dialog, password visibility preview toggle,
+  Crew Wi-Fi pass generator, universal plain-text (.txt) MikroTik configuration backup/restore dialogs,
+  and dedicated Customer-Facing Display Customizer with live 16:9 interactive simulator.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -32,31 +40,21 @@
 <body data-theme="modern">
 
   <!-- ============================================================= -->
-  <!-- 1. FULL-SCREEN LOGIN / LOCK SCREEN OVERLAY                    -->
+  <!-- 1. FULL-SCREEN LOGIN / LOCK SCREEN OVERLAY (PIN-ONLY)         -->
   <!-- ============================================================= -->
   <div id="login-screen" class="login-screen">
     <div class="login-card">
       
-      <!-- Left Pane: Branding, Live Camera QR Scanner, and Hints -->
+      <!-- Left Pane: Branding and Security Status -->
       <div class="login-pane-left">
         <div class="login-header">
           <div class="login-logo-badge">🔒</div>
           <h2>Terminal Locked</h2>
-          <p>Scan employee badge or enter numeric PIN</p>
-        </div>
-
-        <!-- Live Camera QR Scanner Viewport -->
-        <div class="camera-scanner-wrap" id="camera-scanner-wrap">
-          <video id="login-camera-preview" playsinline autoplay muted></video>
-          <div class="camera-scan-overlay">
-            <div class="camera-reticle"></div>
-            <div class="camera-laser"></div>
-          </div>
-          <div class="camera-status-pill" id="camera-status-pill">Point badge QR to camera</div>
+          <p>Enter your 4–6 digit numeric PIN to unlock</p>
         </div>
 
         <div class="login-footer-hint">
-          <span>Welcome back! Please enter your <b>PIN</b> to login.</span>
+          <span>Camiling, Tarlac • Standalone POS Register</span>
         </div>
       </div>
 
@@ -101,7 +99,7 @@
   <div id="admin-screen" class="admin-screen hidden">
     <header class="admin-topbar">
       <div class="admin-brand">
-        <span class="admin-title">⚙️ POS Administration Portal</span>
+        <span class="admin-title">⚙ POS Administration Portal</span>
         <span class="badge badge-admin">ADMINISTRATOR</span>
       </div>
       <div class="admin-nav-tabs">
@@ -111,21 +109,51 @@
         <button type="button" class="btn-admin-tab" data-tab="categories" id="tab-btn-categories">📂 Categories</button>
         <button type="button" class="btn-admin-tab" data-tab="users" id="tab-btn-users">👥 Staff & Users</button>
         <button type="button" class="btn-admin-tab" data-tab="store" id="tab-btn-store">🏪 Store Profile</button>
+        <button type="button" class="btn-admin-tab" data-tab="display" id="tab-btn-display">🖥️ Customer Display</button>
         <button type="button" class="btn-admin-tab" data-tab="sync" id="tab-btn-sync">☁️ Cloud Sync</button>
+        <button type="button" class="btn-admin-tab" data-tab="hotspot" id="tab-btn-hotspot">📶 MikroTik Hotspot</button>
+        <button type="button" class="btn-admin-tab" data-tab="backup" id="tab-btn-backup">💾 Backup & Restore</button>
       </div>
       <button type="button" class="btn-tool btn-danger-outline" id="btn-close-admin">✖ Exit to Register</button>
     </header>
 
     <main class="admin-content">
-      <!-- Tab 1: Sales & Reports -->
+      <!-- Tab 1: Sales & Reports with Shift Filter & Drawer Cash Float Reconciliation -->
       <section class="admin-tab-pane active" id="pane-sales">
+        
+        <!-- Cashier Work Shift Selector & Admin Initial Cash Setting Bar -->
+        <div class="admin-table-controls" style="margin-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <label for="select-sales-shift" class="label-bold-sm">Cashier Shift:</label>
+            <select id="select-sales-shift" class="form-select" style="min-width: 180px;">
+              <option value="active" selected>Active Shift (Current Cashier)</option>
+              <option value="all">All Shifts / Full History</option>
+            </select>
+            <span id="shift-status-pill" class="stat-hotspot-pill">🟢 Shift Active</span>
+
+            <!-- Admin Drawer Starting Float Setting -->
+            <div style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--bg-card); border: var(--border); border-radius: var(--radius);">
+              <label for="input-admin-initial-float" class="label-bold-sm" style="white-space: nowrap;">Initial Cash (₱):</label>
+              <input type="number" step="0.01" min="0" id="input-admin-initial-float" placeholder="1000.00" style="width: 95px; padding: 3px 6px; font-weight: 800;" />
+              <button type="button" class="btn-tool btn-sm" id="btn-save-shift-float" title="Save starting drawer float">💾 Set</button>
+            </div>
+          </div>
+          <div class="admin-actions-group">
+            <button type="button" class="btn-tool btn-danger-outline" id="btn-open-clear-transactions" title="Clear transaction history by date range">🗑️ Clear Transactions</button>
+            <button type="button" class="btn-tool btn-danger-outline" id="btn-close-shift">🛑 End Cashier Shift</button>
+            <button type="button" class="btn-tool btn-generate-report" id="btn-generate-sales-report">📊 Export Report (PDF / XLS)</button>
+            <button type="button" class="btn-print-report btn-tool" id="btn-print-sales-report">🖨️ Print Shift Summary</button>
+          </div>
+        </div>
+
+        <!-- 6-Metric Financial Reconciliation Grid -->
         <div class="admin-metrics-grid">
           <div class="metric-card">
-            <span class="metric-title">Gross Sales</span>
+            <span class="metric-title">Gross Sales (Net of Voids)</span>
             <h3 id="stat-gross-sales">₱0.00</h3>
           </div>
           <div class="metric-card">
-            <span class="metric-title">Total Orders</span>
+            <span class="metric-title">Orders Completed</span>
             <h3 id="stat-total-orders">0</h3>
           </div>
           <div class="metric-card">
@@ -133,16 +161,23 @@
             <h3 id="stat-total-vat">₱0.00</h3>
           </div>
           <div class="metric-card">
-            <span class="metric-title">GCash vs Cash</span>
+            <span class="metric-title">GCash vs Cash Sales</span>
             <h3 id="stat-payment-split">₱0 / ₱0</h3>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Initial Cashier Money</span>
+            <h3 id="stat-initial-cash" style="color: #0284c7;">₱0.00</h3>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Gross Cash in Drawer</span>
+            <h3 id="stat-drawer-cash" style="color: #16a34a;">₱0.00</h3>
           </div>
         </div>
 
         <div class="admin-table-controls">
-          <h3>Transaction History</h3>
-          <div class="admin-actions-group">
-            <button type="button" class="btn-tool btn-generate-report" id="btn-generate-sales-report">📄 Generate Report File</button>
-            <button type="button" class="btn-tool btn-print-report" id="btn-print-sales-report">🖨️ Print Sales Summary</button>
+          <div>
+            <h3>Transaction History Ledger</h3>
+            <p class="printer-hint-text">Shows orders belonging to the selected shift or lifetime ledger.</p>
           </div>
         </div>
 
@@ -212,7 +247,6 @@
           </div>
         </div>
 
-        <!-- Global Threshold Configuration Card -->
         <div class="sync-settings-card sync-settings-card-pad">
           <div class="form-row-2 form-row-center">
             <div>
@@ -265,21 +299,29 @@
         </div>
       </section>
 
-      <!-- Tab 4: Category Management -->
+      <!-- Tab 4: Category Management with Drag & Drop Sorting -->
       <section class="admin-tab-pane" id="pane-categories">
         <div class="admin-table-controls">
-          <h3>Product Categories</h3>
-          <button type="button" class="btn-pay btn-cash" id="btn-add-new-category">+ Add New Category</button>
+          <div>
+            <h3>Product Categories</h3>
+            <p class="printer-hint-text">Drag handle (⠿) or use arrows to re-order categories. Changes save automatically.</p>
+          </div>
+          <div class="admin-actions-group">
+            <button type="button" class="btn-tool" id="btn-auto-sort-categories" title="Sort all categories alphabetically (A-Z)">🔤 Auto-Sort (A–Z)</button>
+            <button type="button" class="btn-tool" id="btn-normalize-category-orders" title="Clean and re-index orders to 1..N">🔢 Clean Index (1..N)</button>
+            <button type="button" class="btn-pay btn-cash" id="btn-add-new-category">+ Add New Category</button>
+          </div>
         </div>
 
         <div class="admin-table-wrap">
           <table class="admin-data-table">
             <thead>
               <tr>
+                <th class="drag-handle-header text-center">⠿</th>
                 <th>Icon</th>
                 <th>Category Name</th>
                 <th>Slug / ID</th>
-                <th>Display Order</th>
+                <th>Display Order (Priority)</th>
                 <th>Type</th>
                 <th class="text-center">Actions</th>
               </tr>
@@ -295,7 +337,7 @@
           <div>
             <h3>Staff Accounts & Security Roles</h3>
             <p class="printer-hint-text">
-              Generate visual QR login badges for phone storage or physical employee cards.
+              Configure employee accounts and numeric login PIN credentials.
             </p>
           </div>
           <button type="button" class="btn-pay btn-cash" id="btn-add-new-user">+ Add User</button>
@@ -358,28 +400,18 @@
             <input type="text" id="store-tagline-input" placeholder="e.g., Fast, Fresh & Local Delivery" />
           </div>
 
-          <!-- Customer Calling Buzzer / Pager Configuration Controls -->
           <div class="form-row-2 form-row-center">
+            <div class="form-group">
+              <label for="store-default-float-input">Default Shift Initial Cash Float (₱):</label>
+              <input type="number" step="0.01" id="store-default-float-input" value="1000.00" placeholder="1000.00" />
+              <small class="printer-hint-text">Auto-fills when cashiers start their work shift on this terminal.</small>
+            </div>
             <div class="form-group">
               <label class="checkbox-label checkbox-label-strong">
                 <input type="checkbox" id="store-use-pager-checkbox" class="input-checkbox-lg" />
                 <span>Enable Customer Number Pager / Buzzer</span>
               </label>
-              <small class="printer-hint-text">
-                Enables calling buzzer selection buttons during checkout and prints the pager number on receipts.
-              </small>
-            </div>
-            <div class="form-group hidden" id="store-pager-count-wrap">
-              <label for="store-pager-count-input">Total Pagers in Store (Buzzer Capacity):</label>
-              <input 
-                type="number" 
-                id="store-pager-count-input" 
-                min="1" 
-                max="99" 
-                value="24" 
-                placeholder="e.g., 24" 
-              />
-              <small class="printer-hint-text">Defines how many buzzer selection buttons appear during payment confirmation.</small>
+              <small class="printer-hint-text">Enables calling buzzer selection buttons during checkout.</small>
             </div>
           </div>
 
@@ -397,9 +429,350 @@
             </div>
           </div>
         </div>
+
+        <!-- DEDICATED GCASH PAYMENT SETTINGS CARD -->
+        <div class="sync-settings-card" style="margin-top: 16px; border: 1px solid rgba(2, 132, 199, 0.4); border-left: 5px solid #0284c7; background: var(--bg-card, #ffffff); border-radius: var(--radius, 8px); padding: 18px 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border, #e2e8f0);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.3rem;">📱</span>
+              <h4 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0284c7; letter-spacing: -0.01em;">
+                GCash Settings
+              </h4>
+              <span style="background: rgba(2, 132, 199, 0.12); color: #0284c7; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase;">
+                E-Wallet
+              </span>
+            </div>
+            <small style="color: var(--text-muted, #64748b); font-size: 0.78rem;">
+              Required for accepting GCash payment at the counter
+            </small>
+          </div>
+
+          <div class="form-row-2" style="margin-top: 14px;">
+            <div class="form-group">
+              <label for="store-gcash-name-input">GCash Account Name:</label>
+              <input type="text" id="store-gcash-name-input" placeholder="e.g., JUAN DELA CRUZ / MY STORE" />
+              <small class="printer-hint-text">Shown to customers on the payment screen to verify receiver.</small>
+            </div>
+            <div class="form-group">
+              <label for="store-gcash-number-input">GCash Mobile / Account Number:</label>
+              <input type="text" id="store-gcash-number-input" placeholder="e.g., 0917-123-4567" />
+              <small class="printer-hint-text">Merchant GCash number for manual mobile reference.</small>
+            </div>
+          </div>
+
+          <div class="form-row-2 form-row-top" style="margin-top: 10px;">
+            <div class="form-group">
+              <label for="store-gcash-qr-input">Merchant GCash QR Code Image:</label>
+              <input type="file" id="store-gcash-qr-input" accept="image/*" />
+              <small class="printer-hint-text" style="display: block; margin-top: 4px;">
+                Upload your official GCash QR Code image (PNG/JPG). 
+                <span style="color: #e11d48; font-weight: 700;">If no QR code is uploaded, the POS will not proceed to GCash and will automatically switch to Cash Payment.</span>
+              </small>
+              <button type="button" class="btn-tool btn-danger-outline btn-sm hidden" id="btn-remove-gcash-qr" style="margin-top: 8px;">
+                🗑️ Remove QR Code
+              </button>
+            </div>
+            <div class="form-group">
+              <label>GCash QR Code Preview:</label>
+              <div class="img-preview-box" style="height: 160px; display: flex; align-items: center; justify-content: center; background: var(--bg-alt, #f8fafc); border: 1px dashed var(--border, #cbd5e1); border-radius: 8px; overflow: hidden; position: relative;">
+                <img id="store-gcash-qr-preview" src="" alt="GCash QR Code Preview" class="hidden" style="max-height: 150px; max-width: 100%; object-fit: contain;" />
+                <span id="store-gcash-qr-placeholder" style="color: var(--text-muted, #94a3b8); font-size: 0.8rem; text-align: center; padding: 10px;">
+                  No QR Code uploaded yet.<br/>(GCash payment will automatically route to Cash)
+                </span>
+              </div>
+              <div id="store-gcash-qr-status" style="margin-top: 6px; font-size: 0.78rem; min-height: 1.2rem;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DEDICATED FAST MODE SETTINGS CARD (ELEGANT RESPONSIVE 2X2 GRID) -->
+        <div class="sync-settings-card" style="margin-top: 16px; border: 1px solid rgba(245, 158, 11, 0.4); border-left: 5px solid #f59e0b; background: var(--bg-card, #ffffff); border-radius: var(--radius, 8px); padding: 18px 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+          
+          <!-- Card Header & Master Toggle Pill -->
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border, #e2e8f0);">
+            <div style="max-width: 620px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.3rem;">⚡</span>
+                <h4 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #d97706; letter-spacing: -0.01em;">
+                  Fast Mode Settings
+                </h4>
+                <span style="background: rgba(245, 158, 11, 0.15); color: #b45309; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase;">
+                  Speed Optimization
+                </span>
+              </div>
+              <p class="printer-hint-text" style="margin: 4px 0 0 0; font-size: 0.78rem; color: var(--text-muted, #64748b);">
+                Fine-tune counter automation, one-touch tenders, and minimal thermal receipt printing for rapid customer turnaround.
+              </p>
+            </div>
+            
+            <label style="display: inline-flex; align-items: center; gap: 10px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.4); padding: 7px 16px; border-radius: 8px; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="store-karinderya-checkbox" style="width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer; margin: 0; flex-shrink: 0;" />
+              <span style="font-size: 0.88rem; font-weight: 800; color: #b45309;">Master Fast Mode Active</span>
+            </label>
+          </div>
+
+          <!-- Individual Granular Feature Switches Grid (2x2) -->
+          <div style="margin-top: 14px;">
+            <div style="font-size: 0.8rem; font-weight: 800; color: var(--text, #1e293b); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+              <span>⚙ Granular Feature Switches</span>
+              <span style="font-size: 0.72rem; font-weight: normal; color: var(--text-muted, #64748b);">(Customize individual behaviors enabled under this mode)</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px;">
+              
+              <!-- 1. Auto-Cash Tender -->
+              <label style="display: flex; align-items: flex-start; gap: 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: border-color 0.2s, background-color 0.2s;">
+                <input type="checkbox" id="cb-karinderya-auto-cash" style="width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer; margin-top: 2px; flex-shrink: 0;" checked />
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                  <span style="font-size: 0.84rem; font-weight: 800; color: var(--text, #1e293b);">⚡ Exact Cash Fast-Path (F8)</span>
+                  <span style="font-size: 0.74rem; color: var(--text-muted, #64748b); line-height: 1.4;">
+                    Bypasses the cash input dialog, assumes exact cash received, commits immediately, and kicks drawer.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 2. Auto-GCash Verification -->
+              <label style="display: flex; align-items: flex-start; gap: 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: border-color 0.2s, background-color 0.2s;">
+                <input type="checkbox" id="cb-karinderya-auto-gcash" style="width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer; margin-top: 2px; flex-shrink: 0;" checked />
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                  <span style="font-size: 0.84rem; font-weight: 800; color: var(--text, #1e293b);">⚡ GCash Prompt Bypass (F9)</span>
+                  <span style="font-size: 0.74rem; color: var(--text-muted, #64748b); line-height: 1.4;">
+                    Skips manual reference number, date, and amount verification prompts with an auto-generated audit ID.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 3. Compact Thermal Receipt -->
+              <label style="display: flex; align-items: flex-start; gap: 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: border-color 0.2s, background-color 0.2s;">
+                <input type="checkbox" id="cb-karinderya-compact-receipt" style="width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer; margin-top: 2px; flex-shrink: 0;" checked />
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                  <span style="font-size: 0.84rem; font-weight: 800; color: var(--text, #1e293b);">⚡ Compact Fast Receipt</span>
+                  <span style="font-size: 0.74rem; color: var(--text-muted, #64748b); line-height: 1.4;">
+                    Strips VAT tax ledgers, company address, and taglines; prints only ordered items, total, voucher code, and QR.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 4. Suppress Calling Buzzer / Pager -->
+              <label style="display: flex; align-items: flex-start; gap: 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: border-color 0.2s, background-color 0.2s;">
+                <input type="checkbox" id="cb-karinderya-suppress-pager" style="width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer; margin-top: 2px; flex-shrink: 0;" checked />
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                  <span style="font-size: 0.84rem; font-weight: 800; color: var(--text, #1e293b);">⚡ Suppress Customer Pagers</span>
+                  <span style="font-size: 0.74rem; color: var(--text-muted, #64748b); line-height: 1.4;">
+                    Automatically hides buzzer selection grids during counter checkout for sub-second transaction speed.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 5. Print Voucher Only (QR Code & Wi-Fi Access) -->
+              <label style="display: flex; align-items: flex-start; gap: 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: border-color 0.2s, background-color 0.2s;">
+                <input type="checkbox" id="cb-karinderya-voucher-only" style="width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer; margin-top: 2px; flex-shrink: 0;" />
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                  <span style="font-size: 0.84rem; font-weight: 800; color: var(--text, #1e293b);">⚡ Print Wi-Fi Voucher Only</span>
+                  <span style="font-size: 0.74rem; color: var(--text-muted, #64748b); line-height: 1.4;">
+                    Omits order items, prices, and totals; only prints the Wi-Fi access QR code and voucher pass credentials.
+                  </span>
+                </div>
+              </label>
+
+            </div>
+          </div>
+
+        </div>
       </section>
 
-      <!-- Tab 7: Cloud Sync & Remote Database Settings -->
+      <!-- Tab 7: Dedicated Customer-Facing Dual Screen Customizer with Live Simulator -->
+      <section class="admin-tab-pane" id="pane-display">
+        <div class="admin-table-controls">
+          <div>
+            <h3>🖥️ Secondary Customer Display Customizer</h3>
+            <p class="printer-hint-text">
+              Configure real-time colors, typography, layout presets, branding elements, and modular component priority for Android dual monitors.
+            </p>
+          </div>
+          <div class="admin-actions-group">
+            <button type="button" class="btn-tool btn-danger-outline" id="btn-reset-display-settings">🔄 Reset Defaults</button>
+            <button type="button" class="btn-tool" id="btn-push-live-display">🚀 Push Live to Screen #2</button>
+            <button type="button" class="btn-pay btn-cash" id="btn-save-display-settings">💾 Save Display Settings</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; align-items: start; margin-top: 4px;">
+          
+          <!-- Left Column: Customization Controls -->
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            
+            <!-- 1. Pre-Configured Layout Presets -->
+            <div class="sync-settings-card">
+              <h4 class="settings-subtitle">📐 Pre-Configured Layout Presets</h4>
+              <p class="printer-hint-text">Choose the high-level geometry and visual balance of the second screen.</p>
+              
+              <div class="duration-preset-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 6px;">
+                <button type="button" class="btn-tool btn-layout-preset active" data-preset="split">
+                  <b>⚖️ Split Balanced (50/50)</b>
+                  <span style="display:block; font-size: 0.68rem; opacity: 0.8; font-weight: normal;">Live cart on left, totals & payment right</span>
+                </button>
+                <button type="button" class="btn-tool btn-layout-preset" data-preset="banner-top">
+                  <b>🏛️ Banner Top</b>
+                  <span style="display:block; font-size: 0.68rem; opacity: 0.8; font-weight: normal;">Prominent store header, full-width cart</span>
+                </button>
+                <button type="button" class="btn-tool btn-layout-preset" data-preset="checkout-focus">
+                  <b>💰 Checkout Focus</b>
+                  <span style="display:block; font-size: 0.68rem; opacity: 0.8; font-weight: normal;">Oversized total amount callout & QR</span>
+                </button>
+                <button type="button" class="btn-tool btn-layout-preset" data-preset="minimalist">
+                  <b>✨ Minimalist Brand</b>
+                  <span style="display:block; font-size: 0.68rem; opacity: 0.8; font-weight: normal;">Centered clean branding, streamlined lines</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Color Theme Palette Pickers & Presets -->
+            <div class="sync-settings-card">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 class="settings-subtitle">🎨 Color Palette & Themes</h4>
+                <div style="display: flex; gap: 4px;">
+                  <button type="button" class="btn-tool btn-sm btn-color-palette" data-theme="dark-slate">Slate</button>
+                  <button type="button" class="btn-tool btn-sm btn-color-palette" data-theme="clean-light">Light</button>
+                  <button type="button" class="btn-tool btn-sm btn-color-palette" data-theme="emerald">Emerald</button>
+                  <button type="button" class="btn-tool btn-sm btn-color-palette" data-theme="indigo">Indigo</button>
+                  <button type="button" class="btn-tool btn-sm btn-color-palette" data-theme="crimson">Crimson</button>
+                </div>
+              </div>
+
+              <div class="form-row-3" style="margin-top: 8px;">
+                <div class="form-group">
+                  <label for="input-cd-bg-color">Background Color:</label>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="color" id="input-cd-bg-color" value="#0f172a" style="width: 38px; height: 32px; padding: 1px; cursor: pointer;" />
+                    <input type="text" id="txt-cd-bg-color" value="#0f172a" style="font-family: monospace; font-size: 0.75rem;" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="input-cd-surface-color">Surface / Card Color:</label>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="color" id="input-cd-surface-color" value="#1e293b" style="width: 38px; height: 32px; padding: 1px; cursor: pointer;" />
+                    <input type="text" id="txt-cd-surface-color" value="#1e293b" style="font-family: monospace; font-size: 0.75rem;" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="input-cd-accent-color">Primary Brand Accent:</label>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="color" id="input-cd-accent-color" value="#0284c7" style="width: 38px; height: 32px; padding: 1px; cursor: pointer;" />
+                    <input type="text" id="txt-cd-accent-color" value="#0284c7" style="font-family: monospace; font-size: 0.75rem;" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row-2" style="margin-top: 6px;">
+                <div class="form-group">
+                  <label for="input-cd-text-color">Primary Text Color:</label>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="color" id="input-cd-text-color" value="#f8fafc" style="width: 38px; height: 32px; padding: 1px; cursor: pointer;" />
+                    <input type="text" id="txt-cd-text-color" value="#f8fafc" style="font-family: monospace; font-size: 0.75rem;" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="input-cd-muted-color">Muted / Subtitle Color:</label>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="color" id="input-cd-muted-color" value="#94a3b8" style="width: 38px; height: 32px; padding: 1px; cursor: pointer;" />
+                    <input type="text" id="txt-cd-muted-color" value="#94a3b8" style="font-family: monospace; font-size: 0.75rem;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Typography & Sizing -->
+            <div class="sync-settings-card">
+              <h4 class="settings-subtitle">🔤 Typography & Font Scaling</h4>
+              <div class="form-row-2" style="margin-top: 6px;">
+                <div class="form-group">
+                  <label for="select-cd-font">Font Family:</label>
+                  <select id="select-cd-font" class="form-select">
+                    <option value="sans" selected>Modern Clean Sans-Serif (System)</option>
+                    <option value="serif">Classic Editorial Serif (Georgia)</option>
+                    <option value="mono">Technical Clean Monospace (Courier)</option>
+                    <option value="rounded">Friendly Rounded Casual (Quicksand)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="select-cd-scale">Display Typography Scale:</label>
+                  <select id="select-cd-scale" class="form-select">
+                    <option value="compact">Compact (Dense / High-Volume)</option>
+                    <option value="normal" selected>Standard (Balanced 100%)</option>
+                    <option value="large">High-Visibility Kiosk (Oversized +15%)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Branding, Taglines & Custom Copy -->
+            <div class="sync-settings-card">
+              <h4 class="settings-subtitle">🏪 Branding & Dynamic Customer Copy</h4>
+              <div class="form-row-2 form-row-center" style="margin-top: 6px;">
+                <label class="checkbox-label checkbox-label-strong">
+                  <input type="checkbox" id="cb-cd-show-logo" checked class="input-checkbox-md" />
+                  <span>Display Store Logo in Header</span>
+                </label>
+                <label class="checkbox-label checkbox-label-strong">
+                  <input type="checkbox" id="cb-cd-show-tagline" checked class="input-checkbox-md" />
+                  <span>Display Store Tagline in Header</span>
+                </label>
+              </div>
+
+              <div class="form-group" style="margin-top: 8px;">
+                <label for="input-cd-welcome-msg">Idle Welcome Message (When cart is empty):</label>
+                <input type="text" id="input-cd-welcome-msg" placeholder="Welcome! Your order details will appear here as items are scanned." value="Welcome! Your order details will appear here as items are scanned." />
+              </div>
+
+              <div class="form-group" style="margin-top: 6px;">
+                <label for="input-cd-footer-note">Customer Screen Footer Note:</label>
+                <input type="text" id="input-cd-footer-note" placeholder="Customer Display Terminal • Live Order Mirror" value="Customer Display Terminal • Live Order Mirror" />
+              </div>
+            </div>
+
+            <!-- 5. Modular Component Order & Priority -->
+            <div class="sync-settings-card">
+              <h4 class="settings-subtitle">🧩 Modular Component Priority Ordering</h4>
+              <p class="printer-hint-text">Use the up/down arrows to adjust the visual flow of components on the second screen.</p>
+              
+              <div id="cd-components-list" style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+                <!-- Dynamically populated component ordering rows -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right Column: 16:9 Interactive Live Simulator Preview -->
+          <div style="position: sticky; top: 10px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="label-bold-sm" style="color: #38bdf8;">🖥️ Live 16:9 Screen #2 Simulator</span>
+              <span class="badge badge-admin">REAL-TIME PREVIEW</span>
+            </div>
+
+            <!-- 16:9 Aspect Ratio Frame Container -->
+            <div style="width: 100%; aspect-ratio: 16/9; background: #000000; border: 2px solid var(--border); border-radius: var(--radius); overflow: hidden; position: relative; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);">
+              <iframe 
+                id="cd-preview-frame" 
+                src="customer-display.html" 
+                style="width: 100%; height: 100%; border: none; display: block;"
+                title="Customer Display Live Simulation"
+              ></iframe>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 8px 12px; border: var(--border); border-radius: var(--radius);">
+              <small class="printer-hint-text">Simulates the exact physical output rendered on Android Display #2.</small>
+              <button type="button" class="btn-tool btn-sm" id="btn-refresh-preview-cart">🛒 Simulate Sample Cart</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Tab 8: Cloud Sync & Remote Database Settings -->
       <section class="admin-tab-pane" id="pane-sync">
         <div class="admin-table-controls">
           <div>
@@ -423,7 +796,6 @@
             </select>
           </div>
 
-          <!-- Firebase REST Fields -->
           <div id="sync-fields-firebase" class="sync-conditional-fields">
             <div class="form-group">
               <label for="sync-firebase-url">Firebase Database URL:</label>
@@ -443,7 +815,6 @@
             </div>
           </div>
 
-          <!-- Google Apps Script Fields -->
           <div id="sync-fields-gas" class="sync-conditional-fields hidden">
             <div class="form-group">
               <label for="sync-gas-url">Google Apps Script Web App URL:</label>
@@ -452,6 +823,9 @@
                 id="sync-gas-url" 
                 placeholder="https://script.google.com/macros/s/AKfycb.../exec" 
               />
+              <small class="form-hint" style="display: block; margin-top: 5px; font-size: 0.74rem; color: #b45309; background: rgba(245, 158, 11, 0.1); padding: 5px 8px; border-radius: 4px; border-left: 3px solid #f59e0b;">
+                ⚠️ <strong>Important:</strong> Must end in <code>/exec</code> (NOT the spreadsheet link). In Apps Script: <strong>Deploy &gt; New deployment &gt; Web app</strong>, set <strong>Who has access: Anyone</strong>.
+              </small>
             </div>
             <div class="form-group">
               <label for="sync-gas-secret">GAS Access Token / Webhook Secret (Optional):</label>
@@ -480,6 +854,508 @@
           </div>
         </div>
       </section>
+
+      <!-- Tab 9: MikroTik Customer Wi-Fi & Voucher Settings -->
+      <section class="admin-tab-pane" id="pane-hotspot">
+        <div class="admin-table-controls">
+          <div>
+            <h3>📶 Customer & Crew Wi-Fi Settings</h3>
+            <p class="printer-hint-text">
+              Configure MikroTik router connection, manage offline pass pools, bandwidth speed limits, single vs unlimited user allowances, password preview, and crew passes.
+            </p>
+          </div>
+          <div class="admin-actions-group">
+            <!-- Universal cross-platform text and JSON backup file importer -->
+            <input type="file" id="input-import-hotspot-file" accept=".txt,.json,text/plain,application/json" class="hidden" />
+            <button type="button" class="btn-tool" id="btn-open-admin-wifi-modal" title="Generate and Print Master Unlimited Voucher for Admin">👑 Admin Wi-Fi</button>
+            <button type="button" class="btn-tool" id="btn-open-crew-wifi-modal" title="Generate and Print Unlimited Access Voucher for Staff">👥 Crew Wi-Fi</button>
+            <button type="button" class="btn-tool" id="btn-export-hotspot-settings" title="Export settings to a plain text backup file">📤 Export</button>
+            <button type="button" class="btn-tool" id="btn-import-hotspot-settings" title="Import settings from a .txt or .json file">📥 Import</button>
+            <button type="button" class="btn-tool" id="btn-test-hotspot-conn">🔌 Test Connection</button>
+            <button type="button" class="btn-pay btn-cash" id="btn-save-hotspot-settings">💾 Save Wi-Fi Settings</button>
+          </div>
+        </div>
+
+        <div class="sync-settings-card">
+          <div class="form-row-2 form-row-center">
+            <div class="form-group">
+              <label class="checkbox-label checkbox-label-strong">
+                <input type="checkbox" id="store-hotspot-enabled-checkbox" class="input-checkbox-lg" />
+                <span>Enable Wi-Fi Pass Printing on Receipts</span>
+              </label>
+              <small class="printer-hint-text">Prints a single-use login pass with QR code on every customer receipt.</small>
+            </div>
+            <div class="form-group form-group-end">
+              <span id="stat-hotspot-conn-status" class="stat-hotspot-pill">⚪ Not Tested</span>
+            </div>
+          </div>
+
+          <div id="hotspot-settings-wrap" class="hidden">
+            <!-- Voucher Duration Controls -->
+            <div class="form-group form-row-mt">
+              <label class="label-bold-sm">Default Session Duration (Access Time per Voucher):</label>
+              <div class="duration-preset-grid">
+                <button type="button" class="btn-tool btn-duration-preset" data-uptime="1h">1 Hour</button>
+                <button type="button" class="btn-tool btn-duration-preset active" data-uptime="2h">2 Hours (Recommended)</button>
+                <button type="button" class="btn-tool btn-duration-preset" data-uptime="3h">3 Hours</button>
+                <button type="button" class="btn-tool btn-duration-preset" data-uptime="4h">4 Hours</button>
+                <button type="button" class="btn-tool btn-duration-preset" data-uptime="12h">12 Hours (Half-Day)</button>
+                <button type="button" class="btn-tool btn-duration-preset" data-uptime="1d">24 Hours (Full-Day)</button>
+              </div>
+
+              <div class="form-row-2 form-row-center form-row-mt">
+                <div>
+                  <select id="select-hotspot-duration" class="form-select">
+                    <option value="1h">1 Hour</option>
+                    <option value="2h" selected>2 Hours (Standard)</option>
+                    <option value="3h">3 Hours</option>
+                    <option value="4h">4 Hours</option>
+                    <option value="12h">12 Hours (Half-Day)</option>
+                    <option value="1d">24 Hours (Full-Day)</option>
+                    <option value="custom">⚙️ Custom Duration...</option>
+                  </select>
+                </div>
+                <div id="custom-duration-wrap" class="hidden custom-duration-inputs">
+                  <input type="number" id="input-custom-duration-val" min="1" max="999" value="2" placeholder="Qty" class="input-threshold-number" />
+                  <select id="select-custom-duration-unit" class="form-select">
+                    <option value="m">Minutes</option>
+                    <option value="h" selected>Hours</option>
+                    <option value="d">Days</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bandwidth Speed Limit & Single vs Unlimited User Controls -->
+            <div class="form-row-2 form-row-mt">
+              <div class="form-group">
+                <label for="select-hotspot-rate-limit" class="label-bold-sm">Bandwidth Speed Limit (Upload / Download):</label>
+                <select id="select-hotspot-rate-limit" class="form-select">
+                  <option value="" selected>Default (Unrestricted / Router Profile)</option>
+                  <option value="1M/2M">Eco (1M Up / 2M Down)</option>
+                  <option value="2M/5M">Standard (2M Up / 5M Down - Recommended)</option>
+                  <option value="5M/10M">Fast (5M Up / 10M Down)</option>
+                  <option value="10M/20M">Ultra (10M Up / 20M Down)</option>
+                </select>
+                <small class="printer-hint-text">Limits maximum internet speed allocated per connected voucher.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="select-hotspot-shared-users" class="label-bold-sm">Device Concurrency Allowance:</label>
+                <select id="select-hotspot-shared-users" class="form-select">
+                  <option value="1" selected>Single User (1 Device Only)</option>
+                  <option value="unlimited">Unlimited Users (Multi-Device Shared Pass)</option>
+                </select>
+                <small class="printer-hint-text">Choose whether this pass is locked to 1 client phone or open to unlimited shared devices.</small>
+              </div>
+            </div>
+
+            <!-- Basic Router Network Coordinates with Password Visibility Toggle -->
+            <div class="form-row-2 form-row-mt">
+              <div class="form-group">
+                <label for="input-hotspot-ip">Router IP Address:</label>
+                <input type="text" id="input-hotspot-ip" placeholder="192.168.88.1" value="192.168.88.1" />
+                <small class="printer-hint-text">Default MikroTik LAN IP is 192.168.88.1</small>
+              </div>
+              <div class="form-group">
+                <label for="input-hotspot-pass">Router Admin / API Password:</label>
+                <div class="barcode-input-group">
+                  <input type="password" id="input-hotspot-pass" placeholder="Enter RouterOS password" />
+                  <button type="button" class="btn-tool" id="btn-toggle-hotspot-pass" title="Show / Hide Written Password">👁️</button>
+                </div>
+                <small class="printer-hint-text">Password for the router's API user.</small>
+              </div>
+            </div>
+
+            <div class="advanced-accordion-container form-row-mt">
+              <button type="button" class="btn-tool btn-block btn-toggle-advanced" id="btn-toggle-advanced-hotspot">⚙️ Show Advanced Network Settings</button>
+              
+              <div id="advanced-hotspot-wrap" class="hidden advanced-accordion-body">
+                <div class="form-row-3 form-row-mt">
+                  <div class="form-group">
+                    <label for="input-hotspot-user">RouterOS API Username:</label>
+                    <input type="text" id="input-hotspot-user" placeholder="pos-terminal" value="pos-terminal" />
+                  </div>
+                  <div class="form-group">
+                    <label for="input-hotspot-port">REST Service Port:</label>
+                    <input type="number" id="input-hotspot-port" placeholder="80" value="80" />
+                  </div>
+                  <div class="form-group">
+                    <label for="select-hotspot-protocol">Protocol:</label>
+                    <select id="select-hotspot-protocol" class="form-select">
+                      <option value="http" selected>HTTP (Standard)</option>
+                      <option value="https">HTTPS (SSL Secure)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row-2 form-row-mt">
+                  <div class="form-group">
+                    <label for="input-hotspot-domain">Captive Portal DNS Domain / Host:</label>
+                    <input type="text" id="input-hotspot-domain" placeholder="hotspot.danielacafecuisine.local" value="hotspot.danielacafecuisine.local" />
+                    <small class="printer-hint-text">Used to build auto-login QR code URLs.</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="input-hotspot-profile">Hotspot User Profile:</label>
+                    <input type="text" id="input-hotspot-profile" placeholder="pos-customer" value="pos-customer" />
+                    <small class="printer-hint-text">Must match user profile created in MikroTik.</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-metrics-grid form-row-mt">
+          <div class="metric-card">
+            <span class="metric-title">Wi-Fi Passes in Stock (Ready)</span>
+            <h3 id="stat-available-vouchers" style="color: #16a34a;">0 Passes Ready</h3>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Passes Issued to Customers</span>
+            <h3 id="stat-consumed-vouchers">0 Issued</h3>
+          </div>
+        </div>
+
+        <!-- Quick-Generate Offline Wi-Fi Passes with Speed & Single/Unlimited Concurrency -->
+        <div class="sync-settings-card form-row-mt">
+          <div class="form-row-2 form-row-center">
+            <div>
+              <h4 class="settings-subtitle">⚡ Quick-Generate Offline Wi-Fi Passes</h4>
+              <p class="printer-hint-text">Pre-creates passes on router with configured speed and user limits, and stores in POS for instant, fail-safe printing.</p>
+            </div>
+            <div class="threshold-action-wrap">
+              <div class="quick-batch-group">
+                <button type="button" class="btn-tool btn-quick-batch active" data-count="25">+25</button>
+                <button type="button" class="btn-tool btn-quick-batch" data-count="50">+50</button>
+                <button type="button" class="btn-tool btn-quick-batch" data-count="100">+100</button>
+              </div>
+              <input 
+                type="number" 
+                id="input-batch-vouchers-count" 
+                min="5" 
+                max="200" 
+                value="25" 
+                class="input-threshold-number" 
+              />
+              <button type="button" class="btn-pay btn-cash" id="btn-batch-generate-vouchers">⚡ Generate Passes</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-table-controls">
+          <div>
+            <h3>Wi-Fi Passes Issuance & Inventory Log</h3>
+            <p class="printer-hint-text">Tracks unused voucher stock, allocated speed limits, and single vs. unlimited user access.</p>
+          </div>
+          <div class="admin-actions-group">
+            <button type="button" class="btn-tool btn-danger-outline" id="btn-delete-unused-vouchers" title="Delete all unused vouchers from router and local database">🗑️ Delete All Unused</button>
+            <button type="button" class="btn-tool btn-danger-outline" id="btn-clear-consumed-vouchers">🧹 Clear Consumed Log</button>
+          </div>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-data-table">
+            <thead>
+              <tr>
+                <th>Voucher Code</th>
+                <th>Duration</th>
+                <th>Speed Limit</th>
+                <th>Device Access</th>
+                <th>Status</th>
+                <th>Assigned Order #</th>
+                <th>Created / Consumed Date</th>
+                <th class="text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="vouchers-admin-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tab 10: System Backup & Selective Data Recovery -->
+      <section class="admin-tab-pane" id="pane-backup">
+        <div class="admin-table-controls">
+          <div>
+            <h3>💾 System Backup & Data Recovery</h3>
+            <p class="printer-hint-text">
+              Export and restore selective system modules, product catalogs with inventory stock, user accounts, store branding, and Wi-Fi voucher databases. 100% offline-compatible on Android (.json / .txt).
+            </p>
+          </div>
+          <div class="admin-actions-group">
+            <input type="file" id="input-backup-file" accept=".json,.txt,application/json,text/plain" class="hidden" />
+            <button type="button" class="btn-tool" id="btn-trigger-file-import">📂 Browse Backup File (.json / .txt)</button>
+            <button type="button" class="btn-pay btn-cash" id="btn-quick-export-backup">💾 Download Backup Now</button>
+          </div>
+        </div>
+
+        <!-- 2-Column Responsive Layout: Export on Left, Import on Right -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; margin-top: 10px;">
+          
+          <!-- LEFT CARD: SELECTIVE EXPORT -->
+          <div class="sync-settings-card" style="border-radius: var(--radius, 8px); padding: 18px; border-left: 5px solid #0284c7;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+              <div>
+                <h4 style="margin: 0; font-size: 1.02rem; font-weight: 800; color: #0284c7;">📤 Export Data Backup</h4>
+                <p class="printer-hint-text" style="margin: 2px 0 0 0; font-size: 0.76rem;">Select which components you want to include in the backup file.</p>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="btn-tool btn-sm" id="btn-select-all-export">Select All</button>
+                <button type="button" class="btn-tool btn-sm" id="btn-deselect-all-export">Clear</button>
+              </div>
+            </div>
+
+            <!-- Modules Selection List -->
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+              
+              <!-- 1. Items & Categories -->
+              <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+                <input type="checkbox" id="cb-export-items" class="backup-export-cb" checked style="width: 18px; height: 18px; accent-color: #0284c7; margin-top: 2px;" />
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 0.86rem;">📦 Items & Categories</span>
+                    <span id="stat-backup-items-count" class="badge">0 items, 0 cats</span>
+                  </div>
+                  <span style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.35; display: block; margin-top: 2px;">
+                    Includes product names, prices, barcodes, categories, stock tracking, and inventory thresholds.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 2. Staff & User Profiles -->
+              <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+                <input type="checkbox" id="cb-export-users" class="backup-export-cb" checked style="width: 18px; height: 18px; accent-color: #0284c7; margin-top: 2px;" />
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 0.86rem;">👥 Staff & User Accounts</span>
+                    <span id="stat-backup-users-count" class="badge">0 accounts</span>
+                  </div>
+                  <span style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.35; display: block; margin-top: 2px;">
+                    Cashiers, managers, and admin profiles, login PINs, and badge barcode identifiers.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 3. Store Profile & Fast Mode -->
+              <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+                <input type="checkbox" id="cb-export-store" class="backup-export-cb" checked style="width: 18px; height: 18px; accent-color: #0284c7; margin-top: 2px;" />
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 0.86rem;">🏪 Store Profile & Fast Mode</span>
+                    <span class="badge badge-cash">Configured</span>
+                  </div>
+                  <span style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.35; display: block; margin-top: 2px;">
+                    Store branding, logo, GCash QR & details, Fast Mode switches, pager buzzer settings, float.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 4. Cloud Sync Credentials -->
+              <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+                <input type="checkbox" id="cb-export-sync" class="backup-export-cb" checked style="width: 18px; height: 18px; accent-color: #0284c7; margin-top: 2px;" />
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 0.86rem;">☁️ Cloud Sync Settings</span>
+                    <span class="badge">Configured</span>
+                  </div>
+                  <span style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.35; display: block; margin-top: 2px;">
+                    Firebase Realtime Database URLs/keys and Google Sheets sync web app configurations.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 5. MikroTik Router Configuration -->
+              <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+                <input type="checkbox" id="cb-export-hotspot" class="backup-export-cb" checked style="width: 18px; height: 18px; accent-color: #0284c7; margin-top: 2px;" />
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 0.86rem;">📶 MikroTik Hotspot Settings</span>
+                    <span class="badge">Configured</span>
+                  </div>
+                  <span style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.35; display: block; margin-top: 2px;">
+                    Router IP, port, API credentials, bandwidth speed limits, domain names, user profiles.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 6. Wi-Fi Hotspot Vouchers Pool -->
+              <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+                <input type="checkbox" id="cb-export-vouchers" class="backup-export-cb" checked style="width: 18px; height: 18px; accent-color: #0284c7; margin-top: 2px;" />
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 0.86rem;">🎟️ Hotspot Vouchers Pool</span>
+                    <span id="stat-backup-vouchers-count" class="badge">0 vouchers</span>
+                  </div>
+                  <span style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.35; display: block; margin-top: 2px;">
+                    Pre-generated voucher pool codes, assigned credentials, uptime quotas, and issue history.
+                  </span>
+                </div>
+              </label>
+
+              <!-- 7. Over-The-Air (OTA) Update Settings -->
+              <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+                <input type="checkbox" id="cb-export-ota" class="backup-export-cb" checked style="width: 18px; height: 18px; accent-color: #0284c7; margin-top: 2px;" />
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 0.86rem;">🔄 OTA Update Settings</span>
+                    <span id="stat-backup-ota-repo" class="badge">Configured</span>
+                  </div>
+                  <span style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.35; display: block; margin-top: 2px;">
+                    Configured GitHub repository (owner/repo) and OTA update channel settings.
+                  </span>
+                </div>
+              </label>
+
+            </div>
+
+            <!-- Export File Format Selector -->
+            <div style="margin-top: 14px; padding: 10px 12px; background: rgba(2, 132, 199, 0.06); border: 1px solid rgba(2, 132, 199, 0.2); border-radius: 8px;">
+              <span class="label-bold-sm" style="display: block; margin-bottom: 6px;">Backup File Format:</span>
+              <div style="display: flex; gap: 16px;">
+                <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 700;">
+                  <input type="radio" name="export-format" value="json" checked style="accent-color: #0284c7;" />
+                  <span>.json (Standard JSON)</span>
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 700;">
+                  <input type="radio" name="export-format" value="txt" style="accent-color: #0284c7;" />
+                  <span>.txt (Plain Text - Android Friendly)</span>
+                </label>
+              </div>
+            </div>
+
+            <button type="button" class="btn-pay btn-cash" id="btn-export-backup-download" style="margin-top: 14px; width: 100%; font-weight: 800;">
+              💾 Download Backup File
+            </button>
+          </div>
+
+          <!-- RIGHT CARD: SELECTIVE IMPORT & RESTORE -->
+          <div class="sync-settings-card" style="border-radius: var(--radius, 8px); padding: 18px; border-left: 5px solid #16a34a;">
+            <div style="border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+              <h4 style="margin: 0; font-size: 1.02rem; font-weight: 800; color: #16a34a;">📥 Import & Restore Backup</h4>
+              <p class="printer-hint-text" style="margin: 2px 0 0 0; font-size: 0.76rem;">Load a previously exported .json or .txt backup file and choose what to restore.</p>
+            </div>
+
+            <!-- File Upload Dropzone / Button -->
+            <div id="backup-dropzone" style="margin-top: 12px; padding: 20px; border: 2px dashed var(--border); border-radius: 8px; text-align: center; background: var(--bg-alt, #f8fafc); cursor: pointer; transition: border-color 0.2s;">
+              <div style="font-size: 1.8rem;">📂</div>
+              <div style="font-weight: 800; font-size: 0.88rem; margin-top: 4px;">Click to Select or Drop Backup File</div>
+              <div class="printer-hint-text" style="font-size: 0.74rem; margin-top: 2px;">Supports .json or .txt backup files</div>
+            </div>
+
+            <!-- Manual Text Paste Accordion/Toggle -->
+            <div style="margin-top: 10px;">
+              <details style="font-size: 0.78rem;">
+                <summary style="cursor: pointer; color: var(--text-muted); font-weight: 600;">Or Paste Backup JSON/Text Directly...</summary>
+                <div style="margin-top: 8px;">
+                  <textarea id="textarea-backup-paste" rows="4" placeholder="Paste backup JSON or plain text here..." style="width: 100%; font-family: monospace; font-size: 0.72rem; padding: 8px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box;"></textarea>
+                  <button type="button" class="btn-tool btn-sm" id="btn-parse-pasted-backup" style="margin-top: 4px;">Inspect Pasted Backup</button>
+                </div>
+              </details>
+            </div>
+
+            <!-- RESTORE INSPECTOR PANEL (Revealed when a backup is loaded) -->
+            <div id="backup-inspect-panel" class="hidden" style="margin-top: 14px; padding: 12px; background: rgba(22, 163, 74, 0.05); border: 1px solid rgba(22, 163, 74, 0.25); border-radius: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(22, 163, 74, 0.2); padding-bottom: 6px;">
+                <span style="font-weight: 800; font-size: 0.82rem; color: #16a34a;">📋 Backup Content Detected:</span>
+                <span id="inspect-backup-date" style="font-size: 0.72rem; color: var(--text-muted);">Timestamp: -</span>
+              </div>
+
+              <!-- Available Modules Checklist -->
+              <div id="inspect-modules-checklist" style="display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+                <!-- Populated dynamically via JS -->
+              </div>
+
+              <!-- Restore Mode Strategy -->
+              <div style="margin-top: 12px; padding: 8px 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;">
+                <span class="label-bold-sm" style="display: block; margin-bottom: 4px;">Restore Mode:</span>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.78rem;">
+                    <input type="radio" name="restore-mode" value="merge" checked style="accent-color: #16a34a;" />
+                    <span><b>Merge / Upsert (Safe)</b> - Updates matching records, retains existing unmentioned data.</span>
+                  </label>
+                  <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.78rem;">
+                    <input type="radio" name="restore-mode" value="replace" style="accent-color: #dc2626;" />
+                    <span style="color: #b91c1c;"><b>Clean Replace</b> - Overwrites existing tables with backup data.</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Execute Restore Action -->
+              <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button type="button" class="btn-pay btn-cash" id="btn-execute-restore" style="flex: 2; font-weight: 800;">
+                  ⚡ Restore Selected Data
+                </button>
+                <button type="button" class="btn-tool" id="btn-cancel-restore" style="flex: 1;">
+                  Cancel
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- DEDICATED OTA SYSTEM UPDATES CARD (GITHUB RELEASES) -->
+        <div class="sync-settings-card" style="margin-top: 16px; border: 1px solid rgba(14, 165, 233, 0.4); border-left: 5px solid #0284c7; background: var(--bg-card, #ffffff); border-radius: var(--radius, 8px); padding: 18px 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.25rem;">🚀</span>
+                <h4 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0284c7;">
+                  Over-The-Air (OTA) System Updates
+                </h4>
+                <span id="badge-current-ota-version" class="badge badge-cash" style="font-size: 0.72rem; text-transform: none;">
+                  v1.0.0 (Bundled)
+                </span>
+              </div>
+              <p class="printer-hint-text" style="margin: 4px 0 0 0; font-size: 0.76rem;">
+                Download and install instant zero-reinstall UI & logic updates directly from GitHub Releases without replacing the Android APK.
+              </p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn-tool btn-sm" id="btn-revert-ota" title="Revert to factory bundled APK assets">
+                🔄 Revert to Factory Assets
+              </button>
+              <button type="button" class="btn-pay btn-cash btn-sm" id="btn-check-ota" style="font-weight: 800;">
+                🔍 Check for OTA Updates
+              </button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 14px;">
+            <div class="form-group">
+              <label for="input-ota-github-repo" class="label-bold-sm">GitHub Repository (owner/repo):</label>
+              <div style="display: flex; gap: 6px; margin-top: 4px;">
+                <input type="text" id="input-ota-github-repo" placeholder="e.g. mielglitx/otaupdatepos" style="flex: 1; padding: 6px 10px; font-family: monospace; font-size: 0.82rem;" />
+                <button type="button" class="btn-tool btn-sm" id="btn-save-ota-repo">💾 Save</button>
+              </div>
+              <small class="printer-hint-text">The public GitHub repo where you publish tagged releases with <code>www.zip</code> attached.</small>
+            </div>
+
+            <div class="form-group">
+              <label class="label-bold-sm">Update Status & Changelog:</label>
+              <div id="ota-status-display" style="margin-top: 4px; padding: 8px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 6px; font-size: 0.76rem; min-height: 48px; display: flex; flex-direction: column; justify-content: center;">
+                <span id="ota-status-text" style="color: var(--text-muted);">Ready to check for updates.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pending Update Action Banner (revealed when newer release detected) -->
+          <div id="ota-update-banner" class="hidden" style="margin-top: 12px; padding: 12px 14px; background: rgba(14, 165, 233, 0.08); border: 1px solid #0284c7; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div style="font-weight: 800; font-size: 0.86rem; color: #0284c7;" id="ota-banner-title">
+                🎉 New Update Available: v1.0.1
+              </div>
+              <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px;" id="ota-banner-desc">
+                Size: ~1.8 MB • Click Install to apply in background.
+              </div>
+            </div>
+            <button type="button" class="btn-pay btn-cash" id="btn-apply-ota" style="font-weight: 800; padding: 8px 18px;">
+              ⚡ Install Update & Reload
+            </button>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -488,7 +1364,6 @@
   <!-- ============================================================= -->
   <div id="layout">
     
-    <!-- Top Bar -->
     <header class="topbar">
       <div class="brand-group">
         <span class="brand-title">POS REG-01</span>
@@ -499,33 +1374,65 @@
         </div>
       </div>
 
-      <div class="search-group">
-        <input type="text" id="barcode-input" placeholder="Scan barcode (or type + Enter)..." />
+      <!-- Search bar with hardware scanner focus, virtual keyboard suppression, and soft keyboard toggle button -->
+      <div class="search-group" style="display: flex; align-items: center; gap: 4px;">
+        <input 
+          type="text" 
+          id="barcode-input" 
+          inputmode="none" 
+          placeholder="Scan barcode (or type + Enter)..." 
+        />
+        <button 
+          type="button" 
+          class="btn-tool" 
+          id="btn-toggle-keyboard" 
+          title="Toggle On-Screen Keyboard" 
+          style="padding: 6px 10px; font-size: 0.95rem; cursor: pointer; user-select: none;"
+          onclick="const b=document.getElementById('barcode-input'); if(b.getAttribute('inputmode')==='none'){ b.setAttribute('inputmode','text'); b.dataset.manualInput='1'; b.focus(); this.style.background='var(--accent,#0284c7)'; this.style.color='#ffffff'; } else { b.setAttribute('inputmode','none'); delete b.dataset.manualInput; b.blur(); this.style.background=''; this.style.color=''; }"
+        >⌨️</button>
       </div>
 
       <div class="controls-group">
-        <div class="theme-toggle">
-          <button type="button" class="btn-theme" data-mode="basic" id="btn-theme-basic">Basic</button>
-          <button type="button" class="btn-theme active" data-mode="modern" id="btn-theme-modern">Modern</button>
-        </div>
-        <button type="button" class="btn-tool btn-admin hidden" id="btn-open-admin">⚙️ Admin</button>
-        <button type="button" class="btn-tool" id="btn-printer-dialog">🖨️ Printers</button>
+        <!-- Front-Page Fast Mode Security-Gated Toggle -->
+        <label class="checkbox-label checkbox-label-strong" style="margin-right: 6px; cursor: pointer; user-select: none;" title="Toggle Fast Mode (Requires Admin Passcode)">
+          <input type="checkbox" id="cb-karinderya-mode" class="input-checkbox-md" />
+          <span style="font-weight: 800; color: #f59e0b; font-size: 0.8rem;">⚡ Fast Mode</span>
+        </label>
+        <button type="button" class="btn-tool btn-customer-display" id="btn-customer-display" title="Open Customer Order Display on 2nd Monitor">🖥 Display</button>
+        <button type="button" class="btn-tool btn-admin hidden" id="btn-open-admin">⚙ Admin</button>
+        <button type="button" class="btn-tool" id="btn-printer-dialog">🖨 Printers</button>
         <button type="button" class="btn-tool" id="btn-kick-drawer">Drawer</button>
         <button type="button" class="btn-tool btn-lock-terminal" id="btn-lock-terminal" title="Lock POS">🔒 Lock</button>
       </div>
     </header>
 
-    <!-- Main Workspace (Adaptive 3-Column Layout) -->
     <div class="workspace">
       
-      <!-- 1. Left Category Sidebar (Square Cards with Images) -->
+      <!-- 1. Left Category Sidebar -->
       <aside class="category-sidebar" id="category-tabs"></aside>
 
-      <!-- 2. Center Catalog Panel (Product Grid & Quick Menu Shelf) -->
+      <!-- 2. Center Catalog Panel -->
       <section class="catalog-panel">
+        <div class="catalog-header-bar">
+          <div class="catalog-header-left">
+            <span id="catalog-active-category-title" class="catalog-category-title">All Items</span>
+          </div>
+          <div class="catalog-header-right">
+            <label for="catalog-sort-select" class="catalog-sort-label">Sort:</label>
+            <select id="catalog-sort-select" class="form-select catalog-sort-select" title="Sort Catalog Products">
+              <option value="default">Default (Order Added)</option>
+              <option value="name-asc">Name (A → Z)</option>
+              <option value="name-desc">Name (Z → A)</option>
+              <option value="price-asc">Price (Low → High)</option>
+              <option value="price-desc">Price (High → Low)</option>
+              <option value="date-desc">Date (Newest First)</option>
+              <option value="date-asc">Date (Oldest First)</option>
+            </select>
+          </div>
+        </div>
+
         <div class="product-grid" id="product-grid"></div>
 
-        <!-- Quick Menu Shelf for Addons -->
         <div class="quick-menu-container" id="quick-menu-container">
           <div class="quick-menu-header">
             <span class="quick-menu-title">⚡ Quick Menu & Add-ons</span>
@@ -537,12 +1444,20 @@
 
       <!-- 3. Right Cart / Ticket Panel -->
       <section class="ticket-panel">
+        <div class="ticket-tabs-bar">
+          <div class="ticket-tabs-list" id="ticket-tabs-list"></div>
+          <button type="button" class="btn-tool btn-sm btn-new-ticket" id="btn-new-ticket" title="Park current order & open new order tab">+ Tab</button>
+        </div>
+
         <div class="ticket-header">
           <div>
             <h3>Current Ticket</h3>
-            <small id="ticket-id">#ORD-0001</small>
+            <small id="ticket-id">Order 1</small>
           </div>
-          <button type="button" class="btn-danger-outline" id="btn-clear-cart">Clear All</button>
+          <div class="ticket-header-actions">
+            <button type="button" class="btn-tool btn-sm" id="btn-preview-ticket" title="Preview Simulated Thermal Receipts">👁️ Preview</button>
+            <button type="button" class="btn-danger-outline" id="btn-clear-cart">Clear All</button>
+          </div>
         </div>
 
         <div class="ticket-scroll">
@@ -584,95 +1499,256 @@
   <!-- 4. MODALS AND FORMS                                           -->
   <!-- ============================================================= -->
 
+  <!-- MODAL 0: Dedicated Crew Wi-Fi Pass Generator (Hours/Days & Unlimited Access) -->
+  <dialog class="pos-modal" id="modal-crew-wifi">
+    <div class="modal-box modal-box-wide">
+      <div class="printer-modal-header">
+        <div>
+          <h3>👥 Crew Wi-Fi Access Pass Generator</h3>
+          <p class="printer-hint-text">Generates shared multi-device access vouchers for store staff and employees.</p>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-crew-wifi-x">✖</button>
+      </div>
+
+      <div class="form-row-2 form-row-mt">
+        <!-- Duration Type: Hours (1-24) vs Days (1-30) -->
+        <div class="form-group">
+          <label for="select-crew-duration-mode" class="label-bold-sm">Duration Type:</label>
+          <select id="select-crew-duration-mode" class="form-select">
+            <option value="hours" selected>Hourly Pass (1 to 24 Hours)</option>
+            <option value="days">Daily Pass (1 to 30 Days)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="input-crew-duration-qty" class="label-bold-sm">Access Duration Amount:</label>
+          <div class="custom-duration-inputs">
+            <input type="number" id="input-crew-duration-qty" min="1" max="24" value="12" class="input-threshold-number" />
+            <span id="crew-duration-unit-label" class="label-bold-sm">Hours</span>
+          </div>
+          <small class="printer-hint-text" id="crew-duration-hint">Range: 1 to 24 hours.</small>
+        </div>
+      </div>
+
+      <div class="form-row-2 form-row-mt">
+        <div class="form-group">
+          <label for="select-crew-rate-limit" class="label-bold-sm">Bandwidth Speed Limit:</label>
+          <select id="select-crew-rate-limit" class="form-select">
+            <option value="">Default (Uncapped / Profile)</option>
+            <option value="2M/5M" selected>Standard (2M Up / 5M Down)</option>
+            <option value="5M/10M">Fast (5M Up / 10M Down)</option>
+            <option value="10M/20M">Ultra (10M Up / 20M Down)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="label-bold-sm">Device Concurrency:</label>
+          <div style="padding-top: 6px;">
+            <span class="badge badge-role-both">UNLIMITED CREW DEVICES</span>
+          </div>
+          <small class="printer-hint-text">All staff members can share this single pass code.</small>
+        </div>
+      </div>
+
+      <!-- Live Generated QR & Code Display -->
+      <div id="crew-pass-result-box" class="sync-settings-card form-row-mt text-center hidden">
+        <div id="crew-wifi-qrcode" class="qr-container"></div>
+        <h2 id="crew-wifi-code-display" class="text-blue" style="letter-spacing: 2px; margin: 4px 0;">CREW-CODE</h2>
+        <p class="printer-hint-text" id="crew-wifi-details-label">Duration: 12 Hours • Unlimited Devices</p>
+      </div>
+
+      <div class="modal-actions modal-actions-mt">
+        <button type="button" class="btn-tool" id="btn-cancel-crew-wifi">Close</button>
+        <button type="button" class="btn-tool" id="btn-generate-crew-wifi">⚡ Create Pass</button>
+        <button type="button" class="btn-pay btn-cash hidden" id="btn-print-crew-wifi">🖨️ Print Crew Slip</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL 0A: Admin Master Wi-Fi Access Pass Dialog -->
+  <dialog class="pos-modal" id="modal-admin-wifi">
+    <div class="modal-box modal-box-wide" style="max-width: 520px;">
+      <div class="printer-modal-header">
+        <div>
+          <h3>👑 Admin Master Wi-Fi Pass</h3>
+          <p class="printer-hint-text">Unlimited duration, uncapped speed, and unlimited multi-device sharing.</p>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-admin-wifi-x">✖</button>
+      </div>
+
+      <div style="background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(14, 165, 233, 0.3); border-radius: 8px; padding: 12px 14px; margin-top: 10px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center;">
+          <div style="padding: 6px; background: #fff; border-radius: 6px; border: 1px solid var(--border);">
+            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Duration</div>
+            <div style="font-size: 0.85rem; font-weight: 800; color: #0284c7;">♾️ UNLIMITED</div>
+          </div>
+          <div style="padding: 6px; background: #fff; border-radius: 6px; border: 1px solid var(--border);">
+            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Speed</div>
+            <div style="font-size: 0.85rem; font-weight: 800; color: #16a34a;">⚡ UNCAPPED</div>
+          </div>
+          <div style="padding: 6px; background: #fff; border-radius: 6px; border: 1px solid var(--border);">
+            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Devices</div>
+            <div style="font-size: 0.85rem; font-weight: 800; color: #7c3aed;">👥 UNLIMITED</div>
+          </div>
+        </div>
+        <p class="printer-hint-text" style="margin: 8px 0 0 0; text-align: center; font-size: 0.75rem;">
+          Permanent master administrator pass created on MikroTik Hotspot with no uptime quota or bandwidth throttle.
+        </p>
+      </div>
+
+      <!-- Live Generated QR & Code Display -->
+      <div id="admin-pass-result-box" class="sync-settings-card form-row-mt text-center hidden">
+        <div id="admin-wifi-qrcode" class="qr-container"></div>
+        <h2 id="admin-wifi-code-display" class="text-blue" style="letter-spacing: 2px; margin: 4px 0;">ADMIN-CODE</h2>
+        <p class="printer-hint-text" id="admin-wifi-details-label">Permanent Pass • Uncapped Speed • Unlimited Devices</p>
+      </div>
+
+      <div class="modal-actions modal-actions-mt">
+        <button type="button" class="btn-tool" id="btn-cancel-admin-wifi">Close</button>
+        <button type="button" class="btn-tool" id="btn-generate-admin-wifi">👑 Generate Master Pass</button>
+        <button type="button" class="btn-pay btn-cash hidden" id="btn-print-admin-wifi">🖨️ Print Admin Slip</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL 0B: Fast Mode Admin Authorization Dialog -->
+  <dialog class="pos-modal" id="modal-karinderya-auth">
+    <div class="modal-box modal-box-void">
+      <div class="printer-modal-header">
+        <div>
+          <h3>🛡️ Administrator Passcode Required</h3>
+          <p class="printer-hint-text"><span id="karinderya-auth-target-title">Toggle Fast Mode</span></p>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-karinderya-auth-x">✖</button>
+      </div>
+
+      <div class="form-group form-group-sm-margin">
+        <div class="login-input-wrap">
+          <input 
+            type="password" 
+            id="karinderya-auth-pin-input" 
+            maxlength="6" 
+            placeholder="••••" 
+            readonly 
+          />
+        </div>
+      </div>
+
+      <div id="karinderya-auth-error-msg" class="login-error"></div>
+
+      <div class="numpad-grid">
+        <button type="button" class="btn-num" data-val="1">1</button>
+        <button type="button" class="btn-num" data-val="2">2</button>
+        <button type="button" class="btn-num" data-val="3">3</button>
+        <button type="button" class="btn-num" data-val="4">4</button>
+        <button type="button" class="btn-num" data-val="5">5</button>
+        <button type="button" class="btn-num" data-val="6">6</button>
+        <button type="button" class="btn-num" data-val="7">7</button>
+        <button type="button" class="btn-num" data-val="8">8</button>
+        <button type="button" class="btn-num" data-val="9">9</button>
+        <button type="button" class="btn-num btn-num-action btn-clear" id="btn-karinderya-auth-clear">CLR</button>
+        <button type="button" class="btn-num" data-val="0">0</button>
+        <button type="button" class="btn-num btn-num-action btn-submit" id="btn-karinderya-auth-submit">OK</button>
+      </div>
+
+      <div class="modal-actions modal-actions-mt">
+        <button type="button" class="btn-tool btn-block" id="btn-cancel-karinderya-auth">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- MODAL 1: Manager Void Scan Required -->
   <dialog class="pos-modal" id="modal-void">
     <div class="modal-box modal-box-void">
       <div class="printer-modal-header">
         <div>
           <h3>⚠️ Manager Authorization Required</h3>
-          <p class="printer-hint-text">Scan badge or enter PIN to void: <b id="void-item-label">-</b></p>
+          <p class="printer-hint-text">Enter manager PIN to void: <b id="void-item-label">-</b></p>
         </div>
         <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-cancel-void-x">✖</button>
       </div>
 
-      <div class="modal-two-pane">
-        <!-- Void Left Pane: Camera Scanner -->
-        <div class="modal-pane-left">
-          <div class="camera-scanner-wrap" id="void-camera-wrap">
-            <video id="void-camera-preview" playsinline autoplay muted></video>
-            <div class="camera-scan-overlay">
-              <div class="camera-reticle"></div>
-              <div class="camera-laser"></div>
-            </div>
-            <div class="camera-status-pill" id="void-camera-status">Point manager badge QR to camera</div>
-          </div>
-          <div class="modal-actions modal-actions-stacked">
-            <button type="button" class="btn-tool btn-block" id="btn-cancel-void">Cancel</button>
-          </div>
+      <div class="form-group form-group-sm-margin">
+        <div class="login-input-wrap">
+          <input 
+            type="password" 
+            id="manager-qr-input" 
+            maxlength="6" 
+            placeholder="••••" 
+            readonly 
+          />
         </div>
+      </div>
 
-        <!-- Void Right Pane: PIN Input and Numpad -->
-        <div class="modal-pane-right">
-          <div class="login-input-wrap">
-            <input 
-              type="password" 
-              id="manager-qr-input" 
-              maxlength="6" 
-              placeholder="••••" 
-              readonly 
-            />
-          </div>
+      <div id="void-error-msg" class="login-error"></div>
 
-          <div id="void-error-msg" class="login-error"></div>
+      <div class="numpad-grid">
+        <button type="button" class="btn-num" data-val="1">1</button>
+        <button type="button" class="btn-num" data-val="2">2</button>
+        <button type="button" class="btn-num" data-val="3">3</button>
+        <button type="button" class="btn-num" data-val="4">4</button>
+        <button type="button" class="btn-num" data-val="5">5</button>
+        <button type="button" class="btn-num" data-val="6">6</button>
+        <button type="button" class="btn-num" data-val="7">7</button>
+        <button type="button" class="btn-num" data-val="8">8</button>
+        <button type="button" class="btn-num" data-val="9">9</button>
+        <button type="button" class="btn-num btn-num-action btn-clear" id="btn-void-clear">CLR</button>
+        <button type="button" class="btn-num" data-val="0">0</button>
+        <button type="button" class="btn-num btn-num-action btn-submit" id="btn-void-submit">OK</button>
+      </div>
 
-          <!-- Touch Numpad for Manager PIN Entry -->
-          <div class="numpad-grid">
-            <button type="button" class="btn-num" data-val="1">1</button>
-            <button type="button" class="btn-num" data-val="2">2</button>
-            <button type="button" class="btn-num" data-val="3">3</button>
-            <button type="button" class="btn-num" data-val="4">4</button>
-            <button type="button" class="btn-num" data-val="5">5</button>
-            <button type="button" class="btn-num" data-val="6">6</button>
-            <button type="button" class="btn-num" data-val="7">7</button>
-            <button type="button" class="btn-num" data-val="8">8</button>
-            <button type="button" class="btn-num" data-val="9">9</button>
-            <button type="button" class="btn-num btn-num-action btn-clear" id="btn-void-clear">CLR</button>
-            <button type="button" class="btn-num" data-val="0">0</button>
-            <button type="button" class="btn-num btn-num-action btn-submit" id="btn-void-submit">OK</button>
-          </div>
-        </div>
+      <div class="modal-actions modal-actions-mt">
+        <button type="button" class="btn-tool btn-block" id="btn-cancel-void">Cancel</button>
       </div>
     </div>
   </dialog>
 
-  <!-- MODAL 2: Dynamic GCash EMVCo QR Display -->
+  <!-- MODAL 2: Merchant GCash QR Code Display -->
   <dialog class="pos-modal" id="modal-gcash">
-    <div class="modal-box text-center">
-      <h3>Scan to Pay with GCash</h3>
-      <p>Exact amount encoded dynamically:</p>
-      <h2 id="gcash-amount-label" class="text-blue">₱0.00</h2>
-      <div id="gcash-qrcode" class="qr-container"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn-tool" id="btn-close-gcash">Cancel</button>
-        <button type="button" class="btn-pay btn-cash" id="btn-confirm-gcash">Payment Received</button>
+    <div class="modal-box text-center" style="max-width: 400px; padding: 22px;">
+      <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 2px;">
+        <span style="font-size: 1.4rem;">📱</span>
+        <h3 style="margin: 0; color: #0284c7; font-weight: 800;">GCash Express Pay</h3>
+      </div>
+      <p style="margin: 0 0 10px 0; font-size: 0.8rem; color: var(--text-muted, #64748b);">Scan official QR or transfer to merchant account:</p>
+      
+      <!-- Merchant Account Details -->
+      <div id="gcash-account-info-box" style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
+        <div id="gcash-merchant-name-label" style="font-weight: 800; font-size: 0.95rem; color: #0369a1; text-transform: uppercase;">MERCHANT NAME</div>
+        <div id="gcash-merchant-number-label" style="font-weight: 700; font-size: 0.88rem; color: var(--text, #1e293b); margin-top: 2px;">0917-000-0000</div>
+      </div>
+
+      <!-- Uploaded Merchant QR Code Display -->
+      <div id="gcash-qr-wrapper" style="background: #ffffff; padding: 10px; border-radius: 12px; border: 1px solid var(--border, #e2e8f0); box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: inline-block; margin-bottom: 10px;">
+        <img id="gcash-uploaded-qr-img" src="" alt="Merchant GCash QR Code" style="max-width: 220px; max-height: 220px; width: 100%; height: auto; object-fit: contain; display: block; border-radius: 6px;" />
+      </div>
+
+      <!-- Total Amount Due -->
+      <div style="margin-bottom: 14px;">
+        <span style="font-size: 0.74rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted, #64748b); letter-spacing: 0.5px;">Amount to Pay</span>
+        <h2 id="gcash-amount-label" class="text-blue" style="font-size: 1.75rem; font-weight: 900; margin: 2px 0 0 0; color: #0284c7;">₱0.00</h2>
+      </div>
+
+      <div class="modal-actions" style="display: flex; gap: 10px; justify-content: center;">
+        <button type="button" class="btn-tool" id="btn-close-gcash" style="flex: 1;">Cancel</button>
+        <button type="button" class="btn-pay btn-cash" id="btn-confirm-gcash" style="flex: 1.4;">Payment Received</button>
       </div>
     </div>
   </dialog>
 
-  <!-- MODAL 3: Thermal Multi-Printer Hub & Configuration -->
+  <!-- MODAL 3: Streamlined Active Thermal Printer Hub (List & Controls Only) -->
   <dialog class="pos-modal" id="modal-printer">
     <div class="modal-box modal-box-printer">
       <div class="printer-modal-header">
         <div>
           <h3>🖨️ Thermal Printer Hub</h3>
           <p class="printer-hint-text">
-            Designate printers as <b>Primary</b> (Customer Copy with prices) or <b>Secondary</b> (Server Slip with orders only). Compatible with standard ESC/POS & XPrinter.
+            Active printers for <b>Primary</b> (Customer Copy) and <b>Secondary</b> (Server Slip). Compatible with ESC/POS, GLPrinter, XPrinter & JK-5802H.
           </p>
         </div>
         <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-printer-hub">✖ Close</button>
       </div>
 
-      <!-- Configured Printers Filter & Controls -->
       <div class="printer-section-title">
         <span>Active & Paired Printers</span>
         <div class="printer-section-actions">
@@ -683,24 +1759,34 @@
             <option value="usb">Wired / USB</option>
           </select>
           <button type="button" class="btn-tool btn-sm" id="btn-test-all-printers">Test Selected</button>
+          <button type="button" class="btn-pay btn-cash btn-sm" id="btn-open-add-printer-modal">➕ Add New Printer</button>
         </div>
       </div>
 
-      <div class="printer-list-container" id="printer-list-container">
-        <!-- Rendered dynamically from IndexedDB -->
+      <!-- High-Capacity Viewport for Active Printers -->
+      <div class="printer-list-container printer-list-container-expanded" id="printer-list-container"></div>
+
+      <div class="modal-actions modal-actions-mt">
+        <button type="button" class="btn-tool" id="btn-dismiss-printer-hub">Done</button>
       </div>
+    </div>
+  </dialog>
 
-      <hr class="printer-divider" />
-
-      <!-- Add New Printer Section -->
-      <div class="printer-section-title">
-        <span>➕ Add New Printer</span>
+  <!-- MODAL 3B: Dedicated "Add New Printer" Dialog -->
+  <dialog class="pos-modal" id="modal-add-printer">
+    <div class="modal-box modal-box-printer">
+      <div class="printer-modal-header">
+        <div>
+          <h3>➕ Add New Thermal Printer</h3>
+          <p class="printer-hint-text">Configure hardware targets, paper sizes, and interface protocols.</p>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-add-printer">✖</button>
       </div>
 
       <div class="printer-form-grid">
         <div class="form-group">
           <label for="new-printer-name">Printer Name / Location:</label>
-          <input type="text" id="new-printer-name" placeholder="e.g., Counter Main or Kitchen Station" required />
+          <input type="text" id="new-printer-name" placeholder="e.g., Counter Main, Kitchen, or JK-5802H" required />
         </div>
 
         <div class="form-row-3">
@@ -746,15 +1832,37 @@
           </div>
         </div>
 
-        <!-- Bluetooth Wireless Fields -->
+        <!-- Bluetooth Wireless Fields with Device Dropdown, Manual Identifier & BLE Compatibility Toggle -->
         <div class="printer-conditional-fields hidden" id="field-bluetooth-wrap">
           <div class="form-group">
-            <label for="new-printer-bt-name">Bluetooth Device Name / MAC:</label>
-            <input type="text" id="new-printer-bt-name" placeholder="e.g., MPT-II or 00:11:22:33:44:55" />
+            <label for="new-printer-bt-select">Discovered / Paired Bluetooth Devices:</label>
+            <div class="usb-scan-input-wrap">
+              <select id="new-printer-bt-select" class="form-select usb-select-flex">
+                <option value="">-- Select Paired Bluetooth Printer --</option>
+              </select>
+              <button type="button" class="btn-tool" id="btn-scan-bt-printer" title="Search and Enumerate Bluetooth Devices">🔍 Scan BT</button>
+            </div>
+          </div>
+          <div class="form-group form-row-mt">
+            <label for="new-printer-bt-name">Bluetooth Device Name / MAC Identifier:</label>
+            <input 
+              type="text" 
+              id="new-printer-bt-name" 
+              placeholder="e.g., GLPrinter, MPT-II, or 00:11:22:33:44:55" 
+              value="GLPrinter" 
+            />
+            <small class="printer-hint-text">Exact name of your printer bonded in Android Settings (e.g., GLPrinter).</small>
+          </div>
+          <div class="form-group form-row-mt">
+            <label class="checkbox-label checkbox-label-strong">
+              <input type="checkbox" id="new-printer-is-ble" class="input-checkbox-md" />
+              <span>Compatibility Mode (BLE / Low Energy)</span>
+            </label>
+            <small class="printer-hint-text">Check this for JK-5802H / KPrinter_fbce to connect directly via GATT without Android PIN pairing.</small>
           </div>
         </div>
 
-        <!-- Wired / USB Dropdown & Scanner Fields -->
+        <!-- Wired / USB Fields -->
         <div class="printer-conditional-fields hidden" id="field-usb-wrap">
           <div class="form-group">
             <label for="new-printer-usb-select">Installed / Connected USB Printers:</label>
@@ -769,8 +1877,216 @@
         </div>
 
         <div class="modal-actions">
+          <button type="button" class="btn-tool" id="btn-cancel-add-printer">Cancel</button>
           <button type="button" class="btn-pay btn-cash" id="btn-save-new-printer">+ Add Printer</button>
         </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL 3C: MikroTik Settings Backup & Export Dialog (Readable QR Code & Plain-Text) -->
+  <dialog class="pos-modal" id="modal-export-hotspot">
+    <div class="modal-box modal-box-wide" style="max-width: 500px;">
+      <div class="printer-modal-header">
+        <div>
+          <h3>📤 MikroTik Settings Export</h3>
+          <p class="printer-hint-text">Transfer settings to another POS device instantly via QR Code or text backup.</p>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-export-modal">✖</button>
+      </div>
+
+      <!-- Settings QR Code Display -->
+      <div id="hotspot-qr-export-wrapper" style="text-align: center; margin: 8px 0 12px 0;">
+        <div style="background: #ffffff; padding: 14px; border-radius: 12px; display: inline-block; border: 1px solid var(--border, #cbd5e1); box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+          <div id="hotspot-qr-export-canvas" style="display: flex; justify-content: center; align-items: center; min-width: 240px; min-height: 240px;"></div>
+        </div>
+        <div style="margin-top: 8px; font-size: 0.82rem; color: var(--text-muted, #64748b);">
+          📱 <b>Scan this QR code from another POS device</b> to instantly import and sync all MikroTik Hotspot settings.
+        </div>
+      </div>
+
+      <div class="form-group form-group-sm-margin">
+        <label for="export-json-textarea">Configuration Backup Data (Text / JSON):</label>
+        <textarea id="export-json-textarea" class="export-textarea" rows="4" readonly></textarea>
+      </div>
+
+      <div class="modal-actions modal-actions-mt">
+        <button type="button" class="btn-tool" id="btn-copy-export-json">📋 Copy to Clipboard</button>
+        <button type="button" class="btn-pay btn-cash" id="btn-download-export-json">💾 Save .txt File</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL 3D: MikroTik Settings Import Dialog (Live Camera Scanner, Image Upload, Paste & File) -->
+  <dialog class="pos-modal" id="modal-import-hotspot">
+    <div class="modal-box modal-box-wide" style="max-width: 520px;">
+      <div class="printer-modal-header">
+        <div>
+          <h3>📥 Import MikroTik Settings</h3>
+          <p class="printer-hint-text">Import hotspot configuration via QR Code, camera scanner, clipboard text, or file backup.</p>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-import-modal">✖</button>
+      </div>
+
+      <!-- Import Mode Tabs -->
+      <div style="display: flex; gap: 6px; margin: 6px 0 14px 0; border-bottom: 1px solid var(--border, #e2e8f0); padding-bottom: 8px;">
+        <button type="button" class="btn-tool active" id="tab-import-camera" style="flex: 1; font-size: 0.82rem; padding: 6px 8px;">📷 Camera Scan</button>
+        <button type="button" class="btn-tool" id="tab-import-image" style="flex: 1; font-size: 0.82rem; padding: 6px 8px;">🖼️ QR Image</button>
+        <button type="button" class="btn-tool" id="tab-import-text" style="flex: 1; font-size: 0.82rem; padding: 6px 8px;">📋 Paste / File</button>
+      </div>
+
+      <!-- Tab 1: Live Camera Scanner -->
+      <div id="view-import-camera" class="import-pane" style="text-align: center;">
+        <div style="position: relative; max-width: 320px; margin: 0 auto; border-radius: 12px; overflow: hidden; background: #0f172a; min-height: 220px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--border, #334155);">
+          <video id="hotspot-import-video" playsinline style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+          <div id="hotspot-import-camera-placeholder" style="color: #94a3b8; font-size: 0.85rem; padding: 24px;">
+            Tap below to activate device camera scanner
+          </div>
+          <div id="hotspot-scan-laser" class="hidden" style="position: absolute; left: 8%; right: 8%; height: 2px; background: #ef4444; box-shadow: 0 0 8px #ef4444; top: 50%;"></div>
+        </div>
+        <div style="margin-top: 12px; display: flex; gap: 8px; justify-content: center;">
+          <button type="button" class="btn-pay btn-cash" id="btn-start-camera-scan">📸 Activate Camera Scanner</button>
+          <button type="button" class="btn-tool hidden" id="btn-stop-camera-scan">⏹️ Stop Camera</button>
+        </div>
+        <small class="printer-hint-text" style="display: block; margin-top: 6px;">Point camera at the exported QR code on the other POS screen.</small>
+      </div>
+
+      <!-- Tab 2: Upload QR Image / Screenshot -->
+      <div id="view-import-image" class="import-pane hidden" style="text-align: center; padding: 14px 10px;">
+        <p style="font-size: 0.85rem; color: var(--text-muted, #64748b); margin-bottom: 12px;">Select a screenshot or photo of the exported MikroTik settings QR code:</p>
+        <input type="file" id="input-import-qr-image" accept="image/*" style="display: none;" />
+        <button type="button" class="btn-pay btn-cash" id="btn-choose-qr-image">📁 Choose QR Image from Gallery</button>
+        <div id="import-qr-image-status" style="margin-top: 10px; font-size: 0.84rem; min-height: 1.2rem;"></div>
+      </div>
+
+      <!-- Tab 3: Paste Text or Pick Backup File -->
+      <div id="view-import-text" class="import-pane hidden">
+        <div class="form-group form-group-sm-margin">
+          <label for="import-json-textarea">Paste Configuration Text / JSON:</label>
+          <textarea id="import-json-textarea" class="export-textarea" rows="5" placeholder='Paste exported JSON or text backup here...'></textarea>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: space-between; align-items: center; margin-top: 8px;">
+          <label class="btn-tool btn-sm" style="cursor: pointer; margin: 0;">
+            📂 Pick .txt / .json File
+            <input type="file" id="input-import-file-backup" accept=".txt,.json" style="display: none;" />
+          </label>
+          <button type="button" class="btn-pay btn-cash" id="btn-apply-pasted-json">Apply Settings</button>
+        </div>
+      </div>
+
+      <!-- Scanned Settings Preview Confirmation Box -->
+      <div id="import-preview-box" class="hidden" style="margin-top: 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid #10b981; border-radius: 8px; padding: 12px; text-align: left;">
+        <h4 style="margin: 0 0 6px 0; color: #059669; font-size: 0.95rem;">✅ Settings Detected</h4>
+        <div id="import-preview-details" style="font-size: 0.82rem; line-height: 1.5; color: var(--text, #1e293b);"></div>
+        <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end;">
+          <button type="button" class="btn-tool" id="btn-cancel-import-preview">Cancel</button>
+          <button type="button" class="btn-pay btn-cash" id="btn-confirm-import-preview">Confirm & Apply Settings</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL 3E: Sales Report Export & Print-to-PDF Dialog -->
+  <dialog class="pos-modal" id="modal-export-sales">
+    <div class="modal-box modal-box-wide" style="max-width: 740px; max-height: 90vh; display: flex; flex-direction: column;">
+      
+      <!-- Modal Header (Hidden on print) -->
+      <div class="printer-modal-header no-print">
+        <div>
+          <h3>📊 Export & Print Sales Report</h3>
+          <p class="printer-hint-text">Export financial summary and order ledgers: Save as PDF, download Excel/CSV, or copy to clipboard.</p>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-export-sales-modal">✖</button>
+      </div>
+
+      <!-- Action Buttons Toolbar (Hidden on print) -->
+      <div class="no-print" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px; background: var(--bg-alt, #f8fafc); border-radius: 8px; border: 1px solid var(--border, #e2e8f0);">
+        <button type="button" class="btn-pay btn-cash" id="btn-export-sales-pdf" style="flex: 1.2; min-width: 140px;">
+          🖨️ Save as PDF / Print
+        </button>
+        <button type="button" class="btn-tool" id="btn-export-sales-xls" style="flex: 1; min-width: 120px; font-weight: 700; color: #16a34a;">
+          📊 Save Excel (.xls)
+        </button>
+        <button type="button" class="btn-tool" id="btn-export-sales-csv" style="flex: 1; min-width: 120px;">
+          📑 Save CSV (.csv)
+        </button>
+        <button type="button" class="btn-tool" id="btn-copy-sales-data" style="flex: 1; min-width: 120px;">
+          📋 Copy to Clipboard
+        </button>
+      </div>
+
+      <!-- Printable Sales Report Container (Scrollable on screen, 100% width on print) -->
+      <div style="flex: 1; overflow-y: auto; padding: 4px;">
+        <div id="printable-sales-report" style="background: #ffffff; color: #0f172a; padding: 18px; border-radius: 8px; border: 1px solid var(--border, #e2e8f0); font-family: system-ui, -apple-system, sans-serif;">
+          <!-- Dynamically populated report content -->
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="modal-actions modal-actions-mt no-print" style="margin-top: 10px;">
+        <button type="button" class="btn-tool btn-block" id="btn-done-export-sales">Done</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL 3F: Clear Transaction History Dialog -->
+  <dialog class="pos-modal" id="modal-clear-transactions">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="printer-modal-header">
+        <div>
+          <h3 style="color: #dc2626;">🗑️ Clear Transaction History</h3>
+          <p class="printer-hint-text">Purge completed transactions and refresh sales metrics.</p>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-clear-transactions-x">✖</button>
+      </div>
+
+      <div style="margin: 14px 0;">
+        <label class="label-bold-sm" style="margin-bottom: 8px; display: block;">Select Time Range to Clear:</label>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; cursor: pointer;">
+            <input type="radio" name="clear-scope" value="today" checked style="accent-color: #dc2626; width: 18px; height: 18px;" />
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-weight: 700; font-size: 0.88rem;">📅 Today's Transactions</span>
+              <span style="font-size: 0.74rem; color: var(--text-muted, #64748b);">Clears all orders completed since 00:00 today</span>
+            </div>
+          </label>
+          <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; cursor: pointer;">
+            <input type="radio" name="clear-scope" value="week" style="accent-color: #dc2626; width: 18px; height: 18px;" />
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-weight: 700; font-size: 0.88rem;">🗓️ This Week's Transactions</span>
+              <span style="font-size: 0.74rem; color: var(--text-muted, #64748b);">Clears orders from Monday of the current week</span>
+            </div>
+          </label>
+          <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border, #e2e8f0); border-radius: 8px; cursor: pointer;">
+            <input type="radio" name="clear-scope" value="month" style="accent-color: #dc2626; width: 18px; height: 18px;" />
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-weight: 700; font-size: 0.88rem;">📆 This Month's Transactions</span>
+              <span style="font-size: 0.74rem; color: var(--text-muted, #64748b);">Clears orders from the 1st of the current month</span>
+            </div>
+          </label>
+          <label style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; cursor: pointer;">
+            <input type="radio" name="clear-scope" value="all" style="accent-color: #dc2626; width: 18px; height: 18px;" />
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-weight: 800; font-size: 0.88rem; color: #b91c1c;">⚠️ Entire Lifetime History</span>
+              <span style="font-size: 0.74rem; color: #dc2626;">Purges ALL past orders from device database</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Scope Count Summary Pill -->
+      <div style="padding: 10px 12px; background: var(--bg-alt, #f8fafc); border-radius: 6px; border: 1px solid var(--border, #e2e8f0); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.82rem; font-weight: 600;">Orders to be deleted:</span>
+        <span id="clear-affected-count-pill" style="font-size: 0.88rem; font-weight: 800; color: #dc2626;">0 orders</span>
+      </div>
+
+      <div style="font-size: 0.76rem; color: #b91c1c; background: #fff1f2; padding: 8px 10px; border-radius: 6px; margin-bottom: 14px; line-height: 1.4;">
+        ⚠️ <b>Irreversible Action:</b> This permanently removes matching sales records. Live ledger metrics and active shift calculations will be immediately updated.
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-tool" id="btn-cancel-clear-transactions">Cancel</button>
+        <button type="button" class="btn-tool btn-danger" id="btn-confirm-clear-transactions" style="background: #dc2626; color: #fff; font-weight: 700;">🗑️ Confirm & Clear</button>
       </div>
     </div>
   </dialog>
@@ -801,14 +2117,12 @@
         </div>
       </div>
 
-      <!-- Inventory Monitoring Configuration Section -->
       <div class="inventory-config-group">
         <label class="checkbox-label checkbox-label-strong">
           <input type="checkbox" id="item-monitored-checkbox" class="input-checkbox-lg" />
           <span>Monitor Item Stock (Track limited inventory quantity)</span>
         </label>
 
-        <!-- Monitored Stock Fields -->
         <div id="item-stock-fields-wrap" class="form-row-2 hidden form-row-mt">
           <div>
             <label for="item-stock-input">Current Stock Quantity:</label>
@@ -820,7 +2134,6 @@
           </div>
         </div>
 
-        <!-- Unmonitored Availability Fields -->
         <div id="item-unmonitored-fields-wrap" class="unmonitored-wrap">
           <label class="checkbox-label checkbox-label-sm">
             <input type="checkbox" id="item-available-checkbox" checked class="input-checkbox-md" />
@@ -842,7 +2155,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL 5: Category CRUD Editor (Add / Edit) with Quick Menu Addons Checkbox -->
+  <!-- MODAL 5: Category CRUD Editor -->
   <dialog class="pos-modal" id="modal-category-form">
     <div class="modal-box modal-box-wide">
       <h3 id="category-modal-title">Category Editor</h3>
@@ -854,13 +2167,12 @@
       <label for="cat-order-input">Display Order (Sorting Priority):</label>
       <input type="number" id="cat-order-input" placeholder="e.g., 5" min="1" value="1" required />
 
-      <!-- Quick Menu Add-ons Classification Flag -->
       <div class="inventory-config-group category-addon-group">
         <label class="checkbox-label checkbox-label-strong">
           <input type="checkbox" id="cat-addon-checkbox" class="input-checkbox-lg" />
-          <span>Mark as "Add-ons" Category (Display items in the register Quick Menu bar)</span>
+          <span>Mark as "Add-ons" Category (Display items in register Quick Menu bar)</span>
         </label>
-        <small class="printer-hint-text">Items under this category will automatically populate the quick-access shelf below the product catalog.</small>
+        <small class="printer-hint-text">Items under this category will automatically populate the quick-access shelf.</small>
       </div>
 
       <label for="cat-pic-input">Category Icon / Picture:</label>
@@ -876,7 +2188,7 @@
     </div>
   </dialog>
 
-  <!-- MODAL 6: User Management Editor (Add / Edit) -->
+  <!-- MODAL 6: User Management Editor -->
   <dialog class="pos-modal" id="modal-user-form">
     <div class="modal-box">
       <h3 id="user-modal-title">Create New Staff User</h3>
@@ -904,18 +2216,17 @@
     </div>
   </dialog>
 
-  <!-- MODAL 7: Staff QR Login Badge Generator & Exporter -->
+  <!-- MODAL 7: Staff QR Login Badge Generator -->
   <dialog class="pos-modal" id="modal-staff-qr">
     <div class="modal-box text-center modal-box-staff-badge">
       <div class="printer-modal-header">
         <div>
-          <h3>💳 Staff QR Login Badge</h3>
-          <p class="printer-hint-text">Save as an image on your phone or print to login instantly via camera.</p>
+          <h3>💳 Staff Badge</h3>
+          <p class="printer-hint-text">Save image for employee records.</p>
         </div>
         <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-staff-qr">✖ Close</button>
       </div>
 
-      <!-- Rendered Composite Card Canvas Preview -->
       <div class="staff-badge-card-container">
         <canvas id="staff-qr-canvas" class="staff-qr-canvas"></canvas>
       </div>
@@ -957,7 +2268,6 @@
         />
       </div>
 
-      <!-- Quick Tender Helper Buttons -->
       <div class="quick-cash-grid">
         <button type="button" class="btn-tool btn-quick-cash" data-val="exact">Exact</button>
         <button type="button" class="btn-tool btn-quick-cash" data-val="50">₱50</button>
@@ -967,7 +2277,6 @@
         <button type="button" class="btn-tool btn-quick-cash" data-val="1000">₱1,000</button>
       </div>
 
-      <!-- Customer Buzzer / Pager Selection Container -->
       <div class="pager-selection-box hidden" id="cash-pager-container">
         <div class="pager-header">
           <label>Select Customer Pager / Buzzer:</label>
@@ -1032,7 +2341,6 @@
         />
       </div>
 
-      <!-- Customer Buzzer / Pager Selection Container -->
       <div class="pager-selection-box hidden" id="gcash-pager-container">
         <div class="pager-header">
           <label>Select Customer Pager / Buzzer:</label>
@@ -1045,7 +2353,7 @@
 
       <div class="modal-actions">
         <button type="button" class="btn-tool" id="btn-back-gcash-confirm">Back to QR</button>
-        <button type="button" class="btn-pay btn-cash" id="btn-finalize-gcash">Confirm & Print</button>
+        <button type="button" class="btn-finalize btn-pay btn-cash" id="btn-finalize-gcash">Confirm & Print</button>
       </div>
     </div>
   </dialog>
@@ -1122,7 +2430,7 @@
     <div class="modal-box text-center modal-box-qty">
       <div class="printer-modal-header">
         <div>
-          <h3>✏️ Edit Item Quantity</h3>
+          <h3>✏ Edit Item Quantity</h3>
           <p class="printer-hint-text" id="cart-qty-item-name">Item Name Here</p>
         </div>
         <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-cart-qty-x">✖</button>
@@ -1141,7 +2449,6 @@
 
       <div id="cart-qty-error-msg" class="error-text"></div>
 
-      <!-- Touch Numpad Grid -->
       <div class="numpad-grid">
         <button type="button" class="btn-num" data-val="1">1</button>
         <button type="button" class="btn-num" data-val="2">2</button>
@@ -1196,7 +2503,93 @@
     </div>
   </dialog>
 
+  <!-- MODAL 14: Thermal Dual-Slip Print Preview -->
+  <dialog class="pos-modal" id="modal-print-preview">
+    <div class="modal-box modal-box-preview">
+      <div class="printer-modal-header">
+        <div>
+          <h3>🖨️ Thermal Receipt Print Preview</h3>
+          <p class="printer-hint-text">Monospace simulation of Customer and Server slips before physical dispatch.</p>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-preview-x">✖</button>
+      </div>
+
+      <div class="preview-toolbar">
+        <div class="preview-toolbar-item">
+          <label for="preview-width-select">Simulated Paper Width:</label>
+          <select id="preview-width-select" class="form-select preview-width-select">
+            <option value="58mm">58mm (32 Columns Standard)</option>
+            <option value="80mm">80mm (48 Columns Wide)</option>
+          </select>
+        </div>
+        <span class="preview-tip-text">Matches ESC/POS physical output</span>
+      </div>
+
+      <div class="thermal-preview-container">
+        <div class="preview-column">
+          <div class="preview-column-header">
+            <span>Customer Copy (Official Receipt)</span>
+          </div>
+          <div class="thermal-paper-wrap">
+            <div id="preview-customer-receipt" class="thermal-paper-slip thermal-paper-58mm"></div>
+          </div>
+        </div>
+
+        <div class="preview-column">
+          <div class="preview-column-header">
+            <span>Server Copy (Kitchen / Preparation)</span>
+          </div>
+          <div class="thermal-paper-wrap">
+            <div id="preview-server-slip" class="thermal-paper-slip thermal-paper-58mm"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions modal-actions-mt">
+        <button type="button" class="btn-tool" id="btn-close-preview">Close Preview</button>
+        <button type="button" class="btn-pay btn-cash" id="btn-print-from-preview">🖨️ Test Print Both</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL 15: Post-Payment Cash Change Due Result Modal -->
+  <dialog class="pos-modal" id="modal-cash-change-result">
+    <div class="modal-box modal-box-change-result text-center">
+      <div class="change-result-icon">💵</div>
+      <h3 class="change-result-title">Payment Completed</h3>
+      <p class="printer-hint-text">Transaction successfully committed & physical receipts dispatched</p>
+
+      <div class="change-result-banner">
+        <span class="change-result-label">CHANGE DUE</span>
+        <h1 id="change-result-amount" class="change-result-val">₱0.00</h1>
+      </div>
+
+      <div class="change-result-summary">
+        <div class="bill-row">
+          <span>Total Order Due:</span>
+          <b id="change-result-total">₱0.00</b>
+        </div>
+        <div class="bill-row">
+          <span>Cash Tendered:</span>
+          <b id="change-result-tendered">₱0.00</b>
+        </div>
+        <div class="bill-row" id="change-result-pager-row">
+          <span>Assigned Buzzer / Pager:</span>
+          <b id="change-result-pager" class="text-blue">#--</b>
+        </div>
+        <div class="bill-row hidden" id="change-result-voucher-row">
+          <span>Wi-Fi Pass (<span id="change-result-voucher-uptime">2h</span>):</span>
+          <b>Code: <span id="change-result-voucher-code" class="text-blue">--</span></b>
+        </div>
+      </div>
+
+      <div class="modal-actions modal-actions-center modal-actions-mt">
+        <button type="button" class="btn-pay btn-cash btn-block" id="btn-close-change-result">Next Transaction (Enter / OK)</button>
+      </div>
+    </div>
+  </dialog>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
-<!-- REMARK: INDEX_HTML_SYNC_CONFIG_BTN_COMPLETE -->
+<!-- REMARK: INDEX_HTML_KEYBOARD_SUPPRESSION_AND_SCANNER_FOCUS_COMPLETE -->

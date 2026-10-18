@@ -254,16 +254,27 @@ export const Sync = {
     const response = await fetch(config.gasUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      redirect: "follow"
     });
 
     if (!response.ok) {
-      throw new Error(`GAS HTTP ${response.status}: ${response.statusText}`);
+      if (response.status === 405) {
+        throw new Error(
+          `GAS HTTP 405 (Method Not Allowed).\n` +
+          `Possible causes:\n` +
+          `1. You entered a Google Spreadsheet link (docs.google.com) instead of the Web App URL ending in '/exec'.\n` +
+          `2. In Apps Script (Deploy > Manage deployments), 'Who has access' was set to 'Only myself' instead of 'Anyone'. (Google login redirects block POST requests).\n` +
+          `Please update your deployment access to 'Anyone' and ensure the URL ends with '/exec'.`
+        );
+      }
+      throw new Error(`GAS HTTP ${response.status}: ${response.statusText || "Request failed"}`);
     }
 
     const result = await response.json();
-    if (result.status !== "success" && result.status !== "ok") {
-      throw new Error(result.message || "Google Apps Script rejected the sync batch.");
+    const isSuccess = result.success === true || result.status === "success" || result.status === "ok";
+    if (!isSuccess) {
+      throw new Error(result.error || result.message || "Google Apps Script rejected the sync batch.");
     }
   },
 
@@ -308,9 +319,12 @@ export const Sync = {
           url.searchParams.set("secret", config.gasSecret);
         }
 
-        const response = await fetch(url.toString(), { method: "GET" });
+        const response = await fetch(url.toString(), { method: "GET", redirect: "follow" });
         if (!response.ok) {
-          throw new Error(`GAS HTTP ${response.status}: ${response.statusText}`);
+          if (response.status === 405) {
+            throw new Error(`GAS HTTP 405 (Method Not Allowed). Check your Web App URL and ensure 'Who has access' is set to 'Anyone'.`);
+          }
+          throw new Error(`GAS HTTP ${response.status}: ${response.statusText || "Request failed"}`);
         }
 
         const result = await response.json();

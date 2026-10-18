@@ -1,11 +1,13 @@
 /**
- * Module Description: POS Core Workflow & Quantity Modal Controller
- * Coordinates the touch quantity editor modal supporting numeric input up to 
- * 18 digits, handles reactive cart ticket table DOM rendering, Philippine statutory 
- * 12% VAT-inclusive totals calculation, and initializes line-item manager void authorization.
+ * Module Description: POS Core Workflow, Quantity Modal & Karinderya Security Gate Controller
+ * Coordinates the touch quantity editor modal supporting numeric input up to 18 digits,
+ * handles reactive cart ticket table DOM rendering, Philippine statutory 12% VAT-inclusive
+ * totals calculation, line-item manager void authorization, and the front-page Karinderya
+ * Mode toggle with strict Administrator Passcode security verification and reliable state inversion.
  */
 
 import { Bus } from "./bus.js";
+import { DB } from "./db.js";
 import { Cart } from "./cart.js";
 import { AuthVoid } from "./auth-void.js";
 import { Theme } from "./theme.js";
@@ -148,6 +150,188 @@ export const CartQtyModal = {
 };
 
 /**
+ * Front-Page Karinderya Mode Security Gate Controller
+ * Enforces Administrator PIN authorization before toggling Karinderya Mode on the register.
+ */
+export const KarinderyaAuth = {
+  checkbox: null,
+  modal: null,
+  pinInput: null,
+  errorEl: null,
+  pinBuffer: "",
+  currentState: false,
+  targetState: false,
+  initialized: false,
+
+  async init() {
+    this.checkbox = document.getElementById("cb-karinderya-mode");
+    this.modal = document.getElementById("modal-karinderya-auth");
+    this.pinInput = document.getElementById("karinderya-auth-pin-input");
+    this.errorEl = document.getElementById("karinderya-auth-error-msg");
+
+    if (!this.checkbox || !this.modal || this.initialized) return;
+    this.initialized = true;
+
+    // Load initial persisted state from database
+    const store = await DB.getStoreSettings();
+    this.currentState = Boolean(store.karinderyaMode);
+    this.checkbox.checked = this.currentState;
+
+    // Sync external admin changes
+    Bus.on("store:karinderya-changed", (enabled) => {
+      this.currentState = Boolean(enabled);
+      if (this.checkbox) this.checkbox.checked = this.currentState;
+    });
+
+    // Intercept click on the wrapper label or checkbox to prevent uncontrolled toggle
+    const labelWrapper = this.checkbox.closest("label") || this.checkbox;
+    labelWrapper.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Calculate target state against our known ground truth state
+      this.targetState = !this.currentState;
+      this.checkbox.checked = this.currentState;
+      this.openAuthModal();
+    };
+
+    // Delegated click handler for the authorization modal numpad
+    this.modal.onclick = async (e) => {
+      const target = e.target.closest("button");
+      if (!target) return;
+
+      if (target.classList.contains("btn-num") && target.dataset.val !== undefined) {
+        e.preventDefault();
+        this.appendDigit(target.dataset.val);
+        return;
+      }
+
+      if (target.id === "btn-karinderya-auth-clear" || target.classList.contains("btn-clear")) {
+        e.preventDefault();
+        this.clearPin();
+        return;
+      }
+
+      if (target.id === "btn-karinderya-auth-submit" || target.classList.contains("btn-submit")) {
+        e.preventDefault();
+        await this.verifyAndApply();
+        return;
+      }
+
+      if (target.id === "btn-cancel-karinderya-auth" || target.id === "btn-close-karinderya-auth-x") {
+        e.preventDefault();
+        this.close();
+      }
+    };
+
+    // Keyboard listener for PIN entry
+    this.modal.onkeydown = async (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        await this.verifyAndApply();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.close();
+      } else if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        this.appendDigit(e.key);
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        this.pinBuffer = this.pinBuffer.slice(0, -1);
+        this.updateDisplay();
+      }
+    };
+  },
+
+  openAuthModal() {
+    this.pinBuffer = "";
+    this.updateDisplay();
+    if (this.errorEl) this.errorEl.textContent = "";
+
+    const titleEl = document.getElementById("karinderya-auth-target-title");
+    if (titleEl) {
+      titleEl.textContent = this.targetState ? "Enable Fast Mode" : "Disable Fast Mode";
+    }
+
+    if (this.modal && typeof this.modal.showModal === "function") {
+      this.modal.showModal();
+      setTimeout(() => {
+        if (this.pinInput) this.pinInput.focus();
+      }, 80);
+    }
+  },
+
+  appendDigit(digit) {
+    if (this.pinBuffer.length < 6) {
+      this.pinBuffer += digit;
+      this.updateDisplay();
+      if (this.errorEl) this.errorEl.textContent = "";
+    }
+  },
+
+  clearPin() {
+    this.pinBuffer = "";
+    this.updateDisplay();
+    if (this.errorEl) this.errorEl.textContent = "";
+  },
+
+  updateDisplay() {
+    if (this.pinInput) {
+      this.pinInput.value = this.pinBuffer ? "•".repeat(this.pinBuffer.length) : "";
+    }
+  },
+
+  async verifyAndApply() {
+    if (!this.pinBuffer) {
+      if (this.errorEl) this.errorEl.textContent = "Please enter administrator PIN.";
+      return;
+    }
+
+    try {
+      // Authenticate user against IndexedDB
+      const user = await DB.authenticateUser(this.pinBuffer);
+
+      // Enforce strict security rule: Only accounts with "admin" role can toggle Fast Mode
+      if (user && String(user.role).toLowerCase() === "admin") {
+        const store = await DB.getStoreSettings();
+        const updated = {
+          ...store,
+          karinderyaMode: this.targetState
+        };
+        await DB.saveStoreSettings(updated);
+
+        this.currentState = this.targetState;
+        if (this.checkbox) {
+          this.checkbox.checked = this.currentState;
+        }
+
+        Bus.emit("store:karinderya-changed", this.currentState);
+        this.close();
+        alert(`Fast Mode is now ${this.currentState ? "ENABLED" : "DISABLED"}. Fast-service checkout and compact receipts are active.`);
+      } else {
+        if (this.errorEl) {
+          this.errorEl.textContent = "Access Denied: Only Administrator passcodes can toggle Fast Mode.";
+        }
+        this.clearPin();
+      }
+    } catch (err) {
+      if (this.errorEl) this.errorEl.textContent = `Authorization error: ${err.message}`;
+      this.clearPin();
+    }
+  },
+
+  close() {
+    if (this.modal && this.modal.open) {
+      this.modal.close();
+    }
+    this.pinBuffer = "";
+    if (this.checkbox) {
+      this.checkbox.checked = this.currentState;
+    }
+  }
+};
+
+/**
  * Core POS Subsystem Coordinator
  */
 export const POS = {
@@ -163,7 +347,10 @@ export const POS = {
     // 2. Initialize Direct Cart Item Quantity Editor Modal
     CartQtyModal.init();
 
-    // 3. Initialize Manager Void Authorization with 4-element signature
+    // 3. Initialize Front-Page Karinderya Security Gate
+    await KarinderyaAuth.init();
+
+    // 4. Initialize Manager Void Authorization with 4-element signature
     AuthVoid.init(
       ui.modalVoid,
       ui.inputVoid,
@@ -171,7 +358,7 @@ export const POS = {
       ui.errVoid
     );
 
-    // 4. Reactive Ticket & Cart Rendering
+    // 5. Reactive Ticket & Cart Rendering
     Bus.on("cart:updated", (calc) => {
       if (!ui.tbody) return;
 
@@ -227,4 +414,4 @@ export const POS = {
   }
 };
 
-// REMARK: POS_CORE_JS_MODULARIZATION_COMPLETE
+// REMARK: POS_CORE_JS_KARINDERYA_RELIABLE_STATE_TOGGLE_COMPLETE

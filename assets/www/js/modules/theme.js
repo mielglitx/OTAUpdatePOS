@@ -6,28 +6,23 @@
  */
 
 export const Theme = {
-  current: localStorage.getItem("pos_theme") || "modern",
+  current: "modern",
 
   /**
-   * Applies the requested theme, updates document attributes, and saves preference
-   * @param {string} name - Theme name ('basic' or 'modern')
+   * Applies the modern theme, updates document attributes, and saves preference
+   * @param {string} name - Theme name (retains 'modern')
    */
-  set(name) {
-    this.current = name;
-    document.body.setAttribute("data-theme", name);
-    localStorage.setItem("pos_theme", name);
-
-    // Synchronize active class on theme switcher buttons
-    document.querySelectorAll(".btn-theme").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.mode === name);
-    });
+  set(name = "modern") {
+    this.current = "modern";
+    document.body.setAttribute("data-theme", "modern");
+    localStorage.setItem("pos_theme", "modern");
   },
 
   /**
    * Initializes visual theme state on application startup
    */
   init() {
-    this.set(this.current);
+    this.set("modern");
   }
 };
 

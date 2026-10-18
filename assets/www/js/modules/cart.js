@@ -1,15 +1,163 @@
 /**
- * Module Description: Active Ticket & VAT Calculation Engine
- * Governs active cart line items, validates inventory stock ceilings,
+ * Module Description: Active Ticket, Multi-Cart & VAT Calculation Engine
+ * Governs multiple concurrent active tickets/carts (allowing cashiers to hold/park
+ * orders while serving subsequent customers), validates inventory stock ceilings,
  * enforces item availability toggles, calculates Philippine statutory 12%
- * VAT-inclusive financial totals, and emits reactive state update events.
+ * VAT-inclusive financial totals, emits reactive application events,
+ * and synchronizes ticket state with the customer-facing dual monitor
+ * display via BroadcastChannel ('pos_customer_display') and localStorage fallback.
  */
 
 import { Bus } from "./bus.js";
 import { DB } from "./db.js";
 
+// Initialize cross-screen broadcast channel for dual-monitor customer display
+const displayChannel = typeof window.BroadcastChannel !== "undefined"
+  ? new window.BroadcastChannel("pos_customer_display")
+  : null;
+
 export const Cart = {
-  items: [],
+  // Multi-cart ticket collection
+  tickets: [
+    { id: "TICK-1", label: "Order 1", items: [] }
+  ],
+  activeTicketId: "TICK-1",
+  ticketCounter: 1,
+
+  /**
+   * Retrieves the currently active ticket entity
+   * @returns {Object} Active ticket object
+   */
+  getActiveTicket() {
+    let t = this.tickets.find((item) => item.id === this.activeTicketId);
+    if (!t) {
+      if (this.tickets.length === 0) {
+        this.ticketCounter++;
+        t = {
+          id: `TICK-${Date.now().toString().slice(-6)}`,
+          label: `Order ${this.ticketCounter}`,
+          items: []
+        };
+        this.tickets.push(t);
+      }
+      this.activeTicketId = this.tickets[0].id;
+      t = this.tickets[0];
+    }
+    return t;
+  },
+
+  /**
+   * Backward-compatible getter & setter for active ticket's items array
+   */
+  get items() {
+    return this.getActiveTicket().items;
+  },
+  set items(val) {
+    this.getActiveTicket().items = val;
+  },
+
+  /**
+   * Creates a new parked order tab and immediately activates it
+   * @param {string} [customLabel] - Optional custom name (e.g. Table # or Customer Name)
+   * @returns {Object} Newly created ticket
+   */
+  createTicket(customLabel) {
+    this.ticketCounter++;
+    const label = customLabel || `Order ${this.ticketCounter}`;
+    const newTicket = {
+      id: `TICK-${Date.now().toString().slice(-6)}`,
+      label,
+      items: []
+    };
+    this.tickets.push(newTicket);
+    this.activeTicketId = newTicket.id;
+
+    this.notify();
+    this.emitTicketsChanged();
+    return newTicket;
+  },
+
+  /**
+   * Switches active workspace to another ticket tab
+   * @param {string} ticketId 
+   */
+  switchTicket(ticketId) {
+    if (this.activeTicketId === ticketId) return;
+    const target = this.tickets.find((t) => t.id === ticketId);
+    if (target) {
+      this.activeTicketId = target.id;
+      this.notify();
+      this.emitTicketsChanged();
+    }
+  },
+
+  /**
+   * Closes or removes a ticket tab (e.g., after completion or manual cancellation)
+   * @param {string} ticketId 
+   */
+  closeTicket(ticketId) {
+    const index = this.tickets.findIndex((t) => t.id === ticketId);
+    if (index === -1) return;
+
+    this.tickets.splice(index, 1);
+
+    if (this.tickets.length === 0) {
+      this.ticketCounter++;
+      const fallback = {
+        id: `TICK-${Date.now().toString().slice(-6)}`,
+        label: `Order ${this.ticketCounter}`,
+        items: []
+      };
+      this.tickets.push(fallback);
+      this.activeTicketId = fallback.id;
+    } else if (this.activeTicketId === ticketId) {
+      this.activeTicketId = this.tickets[Math.max(0, index - 1)].id;
+    }
+
+    this.notify();
+    this.emitTicketsChanged();
+  },
+
+  /**
+   * Emits ticket list state to UI components
+   */
+  emitTicketsChanged() {
+    Bus.emit("cart:tickets-changed", {
+      tickets: this.tickets.map((t) => ({
+        id: t.id,
+        label: t.label,
+        itemCount: t.items.reduce((sum, i) => sum + (i.qty || 1), 0),
+        total: t.items.reduce((sum, i) => sum + ((Number(i.price) || 0) * (i.qty || 1)), 0),
+        isActive: t.id === this.activeTicketId
+      })),
+      activeTicketId: this.activeTicketId,
+      activeLabel: this.getActiveTicket().label
+    });
+  },
+
+  /**
+   * Dispatches payload to external customer display window
+   * @param {Object} payload
+   */
+  broadcastToCustomer(payload) {
+    if (displayChannel) {
+      try {
+        displayChannel.postMessage(payload);
+      } catch (err) {
+        console.warn("[Cart BroadcastChannel Error]", err);
+      }
+    }
+
+    // Fallback via localStorage storage events for environments without BroadcastChannel
+    try {
+      localStorage.setItem("pos_customer_broadcast", JSON.stringify({
+        ...payload,
+        _timestamp: Date.now()
+      }));
+    } catch (e) {
+      // Storage quota or private browsing guard
+    }
+  },
 
   /**
    * Adds or increments a product in the active cart with stock verification
@@ -52,7 +200,7 @@ export const Cart = {
       }
     }
 
-    // 3. Commit line item to ticket
+    // 3. Commit line item to active ticket
     if (existing) {
       existing.qty = requestedTotal;
     } else {
@@ -67,6 +215,7 @@ export const Cart = {
     }
 
     this.notify();
+    this.emitTicketsChanged();
     return { ok: true, currentQty: requestedTotal };
   },
 
@@ -101,6 +250,7 @@ export const Cart = {
 
     item.qty = newQty;
     this.notify();
+    this.emitTicketsChanged();
     return { ok: true };
   },
 
@@ -118,6 +268,7 @@ export const Cart = {
       this.items.splice(index, 1);
     }
     this.notify();
+    this.emitTicketsChanged();
   },
 
   /**
@@ -130,6 +281,7 @@ export const Cart = {
     if (index !== -1) {
       const removed = this.items.splice(index, 1)[0];
       this.notify();
+      this.emitTicketsChanged();
       Bus.emit("cart:item-voided", removed);
       return removed;
     }
@@ -137,7 +289,7 @@ export const Cart = {
   },
 
   /**
-   * Returns current quantity of a product currently in the cart
+   * Returns current quantity of a product currently in the active cart
    * @param {string|number} productId 
    * @returns {number}
    */
@@ -152,10 +304,15 @@ export const Cart = {
   clear() {
     this.items = [];
     this.notify();
+    this.emitTicketsChanged();
+    this.broadcastToCustomer({
+      type: "checkout:cleared",
+      data: {}
+    });
   },
 
   /**
-   * Computes Philippine statutory 12% VAT-inclusive breakdown and order totals
+   * Computes Philippine statutory 12% VAT-inclusive breakdown and order totals for active ticket
    * @returns {Object} Calculated ticket breakdown
    */
   calculate() {
@@ -176,16 +333,24 @@ export const Cart = {
       itemCount: this.items.reduce((sum, item) => sum + item.qty, 0),
       vatableSales: Number(vatableSales.toFixed(2)),
       vatAmount: Number(vatAmount.toFixed(2)),
-      total: Number(total.toFixed(2))
+      total: Number(total.toFixed(2)),
+      ticketLabel: this.getActiveTicket().label
     };
   },
 
   /**
-   * Broadcasts updated ticket calculations to all UI subscribers
+   * Broadcasts updated ticket calculations to internal subscribers and external customer screens
    */
   notify() {
-    Bus.emit("cart:updated", this.calculate());
+    const calc = this.calculate();
+    Bus.emit("cart:updated", calc);
+
+    // Mirror cart updates directly to second monitor
+    this.broadcastToCustomer({
+      type: "cart:updated",
+      data: calc
+    });
   }
 };
 
-// REMARK: CART_JS_MODULARIZATION_COMPLETE
+// REMARK: CART_JS_MULTI_TICKET_ENGINE_COMPLETE

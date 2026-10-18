@@ -1,7 +1,14 @@
 /**
  * Module Description: POS Application Primary Entrypoint & Modular Orchestrator
- * Bypasses mobile WebView local MIME-type restrictions ("text/plain") for ES modules
- * by dynamically fetching component files from correct local paths and importing them via blobs.
+ * Eliminates duplicate shift report printing on logout by consolidating print execution
+ * exclusively into the primary lock handler with an asynchronous debounce guard.
+ * Captures authenticated cashier credentials prior to session teardown to prevent fallback
+ * to default user profiles on thermal printouts. Directly imports all core modules, session state,
+ * reporting engines, printer drivers, and the secondary customer display customizer from verified
+ * relative module paths without speculative 404 script loaders.
+ * Initializes core database, network sync scheduler, catalog, multi-printer hardware hub,
+ * cashier terminal, silent background shift engagement with admin-configured drawer float,
+ * customer-facing dual-screen display customizer, and system lock screen.
  */
 
 import { 
@@ -14,39 +21,63 @@ import {
   CatalogUI, 
   CheckoutUI, 
   PrinterUI, 
-  AdminUI 
+  AdminUI,
+  Printer,
+  Reports,
+  Session
 } from "./facade.js";
+import { AdminDisplay } from "./modules/admin/admin-display.js";
 
-async function loadComponentScript(path) {
+let isPrintingLogoutReport = false;
+
+/**
+ * Compiles and prints the active cashier's shift sales summary on thermal receipt printers in background
+ * @param {Object|null} user - Logged-out cashier user object
+ */
+async function printLogoutReport(user) {
+  if (isPrintingLogoutReport) return;
+  isPrintingLogoutReport = true;
+
   try {
-    const response = await fetch(path);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const activeUser = user || { id: "USR-001", name: "Cashier" };
+    const activeShift = await DB.getActiveShift(activeUser.id);
+    
+    // Retrieve financial ledger for the active shift
+    const summary = await DB.getSalesSummary(activeShift ? activeShift.id : "active");
+    
+    // Safety check: Skip printing if there are no sales and no opening float
+    if (!summary || (summary.orderCount === 0 && (!summary.initialCash || summary.initialCash === 0))) {
+      return;
     }
-    const text = await response.text();
-    const blob = new Blob([text], { type: "application/javascript" });
-    const url = URL.createObjectURL(blob);
-    await import(url);
+
+    const enabledPrinters = await DB.getEnabledPrinters();
+    const paperWidth = enabledPrinters.length > 0 && enabledPrinters[0].paperWidth 
+      ? enabledPrinters[0].paperWidth 
+      : "58mm";
+
+    const reportBytes = Reports.buildDailyReportBytes(summary, activeUser, paperWidth);
+
+    if (enabledPrinters.length > 0) {
+      await Promise.allSettled(enabledPrinters.map((p) => Printer.dispatchToTarget(p, reportBytes)));
+    } else {
+      await Printer.dispatch(reportBytes);
+    }
   } catch (err) {
-    console.error(`[Module Loader] Failed to load component ${path}:`, err);
+    console.warn("[Logout Sales Summary Print Notice]:", err);
+  } finally {
+    isPrintingLogoutReport = false;
   }
 }
 
 async function initApp() {
   try {
-    // 1. Dynamically load Web Component UI Skeletons from correct js/components path
-    await loadComponentScript("./js/components/pos-login.js");
-    await loadComponentScript("./js/components/pos-workspace.js");
-    await loadComponentScript("./js/components/pos-admin.js");
-    await loadComponentScript("./js/components/pos-modals.js");
-
-    // 2. Initialize IndexedDB schema, seed master records, and sync settings
+    // 1. Initialize IndexedDB schema, seed master records, and sync settings
     await DB.init();
 
-    // 3. Initialize Network Monitor & Cloud Sync Adapter
+    // 2. Initialize Network Monitor & Cloud Sync Adapter
     Sync.init();
 
-    // 4. Boot POS Facade ticket bindings and manager void modal verification
+    // 3. Boot POS Facade ticket bindings and manager void modal verification
     POS.boot({
       tbody: document.getElementById("cart-tbody"),
       txtNet: document.getElementById("txt-subtotal"),
@@ -58,18 +89,18 @@ async function initApp() {
       errVoid: document.getElementById("void-error-msg")
     });
 
-    // 5. Initialize Catalog & Category Browser
+    // 4. Initialize Catalog & Category Browser
     CatalogUI.init();
     await CatalogUI.loadCategories();
     await CatalogUI.loadProducts("all");
 
-    // 6. Initialize Payment & Multi-Printer Checkout Engine
+    // 5. Initialize Payment & Multi-Printer Checkout Engine
     CheckoutUI.init();
 
-    // 7. Initialize Multi-Printer Hub Console
+    // 6. Initialize Multi-Printer Hub Console
     PrinterUI.init();
 
-    // 8. Initialize Administration Back-Office Portal
+    // 7. Initialize Administration Back-Office Portal
     AdminUI.init({
       onCatalogModified: async () => {
         await CatalogUI.loadCategories();
@@ -81,29 +112,78 @@ async function initApp() {
       }
     });
 
-    // 9. Initialize Lock Screen & Continuous Optical QR Scanner
+    // 8. Initialize Customer-Facing Dual Screen Customizer Sub-Module
+    if (AdminDisplay && typeof AdminDisplay.init === "function") {
+      AdminDisplay.init();
+
+      // Bind Customer Display Admin Navigation Tab
+      const tabBtnDisplay = document.getElementById("tab-btn-display");
+      if (tabBtnDisplay) {
+        tabBtnDisplay.addEventListener("click", async () => {
+          document.querySelectorAll(".btn-admin-tab").forEach((b) => b.classList.remove("active"));
+          tabBtnDisplay.classList.add("active");
+
+          document.querySelectorAll(".admin-tab-pane").forEach((p) => p.classList.remove("active"));
+          const paneDisplay = document.getElementById("pane-display");
+          if (paneDisplay) {
+            paneDisplay.classList.add("active");
+          }
+
+          await AdminDisplay.loadDisplaySettings();
+        });
+      }
+
+      // Bind Topbar Customer Display Hardware Presentation Trigger
+      const btnCustomerDisplay = document.getElementById("btn-customer-display");
+      if (btnCustomerDisplay) {
+        btnCustomerDisplay.onclick = async () => {
+          await AdminDisplay.pushLiveToSecondary();
+        };
+      }
+    }
+
+    // 9. Initialize Lock Screen & Cashier Shift Engagement
     LoginUI.init({
-      onLoginSuccess: () => {
+      onLoginSuccess: async (user) => {
         CatalogUI.focusBarcode();
+
+        // Silently engage cashier shift using Admin-configured initial money
+        try {
+          const activeShift = await DB.getActiveShift(user ? user.id : null);
+          if (!activeShift) {
+            const store = await DB.getStoreSettings();
+            const startingFloat = Number(store.defaultInitialCash) || 1000.0;
+            await DB.startShift(user || { id: "USR-001", name: "Cashier" }, startingFloat);
+          }
+        } catch (shiftErr) {
+          console.warn("[Shift Auto-Start Notice]:", shiftErr);
+        }
       },
-      onLock: () => {
+      onLock: (priorUser) => {
+        // 1. Immediately purge in-memory cart state
         Cart.clear();
+
+        // 2. Detached non-blocking background dispatch: sales summary prints asynchronously
+        // Terminal is already locked on-screen, so printer hardware/network latency never freezes or slows the UI
+        if (priorUser) {
+          printLogoutReport(priorUser).catch((err) => {
+            console.warn("[Background Logout Print Notice]:", err);
+          });
+        }
       }
     });
 
     // 10. Bind global register action controls
-    const btnThemeBasic = document.getElementById("btn-theme-basic");
-    const btnThemeModern = document.getElementById("btn-theme-modern");
     const btnClearCart = document.getElementById("btn-clear-cart");
-
-    if (btnThemeBasic) {
-      btnThemeBasic.onclick = () => Theme.set("basic");
-    }
-    if (btnThemeModern) {
-      btnThemeModern.onclick = () => Theme.set("modern");
-    }
+    const btnLockTerminal = document.getElementById("btn-lock-terminal");
     if (btnClearCart) {
       btnClearCart.onclick = () => Cart.clear();
+    }
+    if (btnLockTerminal) {
+      btnLockTerminal.onclick = () => {
+        // Immediate zero-latency terminal lock: locks in 0ms without waiting for thermal printer
+        LoginUI.lock();
+      };
     }
 
   } catch (err) {
@@ -114,4 +194,4 @@ async function initApp() {
 // Start application runtime
 initApp();
 
-// REMARK: MAIN_JS_PATH_FIXED
+// REMARK: MAIN_JS_DEDUPLICATED_LOCK_PRINT_AND_DEBOUNCE_COMPLETE

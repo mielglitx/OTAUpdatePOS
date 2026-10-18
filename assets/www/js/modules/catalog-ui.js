@@ -1,7 +1,10 @@
 /**
  * Module Description: Product Catalog & Category Workspace Controller
- * Manages category tab navigation, square product card rendering with real-time stock
- * warnings (low stock alerts and out-of-stock overlays), quick-access add-on tray shelf,
+ * Manages category tab navigation, adaptive square product card rendering
+ * (detecting and filtering out placeholder SVGs so items without custom photos
+ * expand into full-box text tiles), multi-criteria sorting (Name A-Z/Z-A,
+ * Price Low/High, Date Created Newest/Oldest), real-time inventory warnings
+ * (low-stock badges and out-of-stock overlays), quick-access add-on shelf,
  * hardware barcode scanning input, and reactive cart additions.
  */
 
@@ -9,25 +12,54 @@ import { DB } from "./db.js";
 import { Cart } from "./cart.js";
 import { Bus } from "./bus.js";
 
-// Safe Base64-encoded SVG fallback to prevent quotation collisions in inline onerror handlers
+// Safe Base64-encoded SVG fallback
 const FALLBACK_IMG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzk0YTNiOCI+PHBhdGggZD0iTTIxIDE5VjVjMC0xLjEtLjktMi0yLTJINWMtMS4xIDAtMiAuOS0yIDJ2MTRjMCAxLjEuOSAyIDIgMmgxNGMxLjEgMCAyLS45IDItMnpNOC41IDEzLjVsMi41IDMuMDFMMTQuNSAxMmw0LjUgNkg1bDMuNS00LjV6Ii8+PC9zdmc+";
+
+/**
+ * Validates whether an image property represents a genuine user photo
+ * rather than an empty value or an internal SVG fallback placeholder.
+ * @param {any} img
+ * @returns {boolean}
+ */
+function isValidProductImage(img) {
+  if (!img || typeof img !== "string") return false;
+  const clean = img.trim();
+  if (clean === "" || clean === FALLBACK_IMG) return false;
+  if (clean.includes("<svg") || clean.includes("PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmci")) {
+    return false;
+  }
+  return true;
+}
 
 export const CatalogUI = {
   currentCategory: "all",
+  currentSort: localStorage.getItem("pos_catalog_sort") || "default",
   elements: {},
   initialized: false,
 
   /**
-   * Initializes DOM bindings, scanner listeners, and inventory event subscriptions
+   * Initializes DOM bindings, sort selector events, scanner listeners, and inventory subscriptions
    */
   init() {
     this.elements = {
       categoryTabs: document.getElementById("category-tabs"),
       productGrid: document.getElementById("product-grid"),
       barcodeInput: document.getElementById("barcode-input"),
+      catalogSortSelect: document.getElementById("catalog-sort-select"),
+      catalogActiveCategoryTitle: document.getElementById("catalog-active-category-title"),
       quickMenuContainer: document.getElementById("quick-menu-container"),
       quickMenuScroll: document.getElementById("quick-menu-scroll")
     };
+
+    // Initialize sort dropdown selection from persistent local storage
+    if (this.elements.catalogSortSelect) {
+      this.elements.catalogSortSelect.value = this.currentSort;
+      this.elements.catalogSortSelect.onchange = async () => {
+        this.currentSort = this.elements.catalogSortSelect.value || "default";
+        localStorage.setItem("pos_catalog_sort", this.currentSort);
+        await this.loadProducts(this.currentCategory);
+      };
+    }
 
     // Category sidebar delegation
     if (this.elements.categoryTabs) {
@@ -160,33 +192,100 @@ export const CatalogUI = {
     if (!this.elements.categoryTabs) return;
 
     const categories = await DB.getCategories();
-    this.elements.categoryTabs.innerHTML = categories.map((cat) => `
-      <button class="cat-pill ${cat.id === this.currentCategory ? "active" : ""}" data-cat="${cat.id}">
-        <div class="cat-img-wrap">
-          <img 
-            src="${cat.image || FALLBACK_IMG}" 
-            alt="${cat.name}" 
-            loading="lazy" 
-            onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" 
-          />
-        </div>
-        <span class="cat-label">${cat.name}</span>
-      </button>
-    `).join("");
+    this.elements.categoryTabs.innerHTML = categories.map((cat) => {
+      const hasImage = isValidProductImage(cat.image);
+      const pillClass = `cat-pill ${cat.id === this.currentCategory ? "active" : ""} ${hasImage ? "has-img" : "text-only"}`;
+
+      const imgHtml = hasImage
+        ? `
+          <div class="cat-img-wrap">
+            <img 
+              src="${cat.image}" 
+              alt="${cat.name}" 
+              loading="lazy" 
+              onerror="this.onerror=null;const p=this.closest('.cat-pill');if(p){p.classList.remove('has-img');p.classList.add('text-only');}this.parentElement.remove();" 
+            />
+          </div>
+        `
+        : "";
+
+      return `
+        <button type="button" class="${pillClass}" data-cat="${cat.id}">
+          ${imgHtml}
+          <span class="cat-label">${cat.name}</span>
+        </button>
+      `;
+    }).join("");
   },
 
   /**
-   * Loads products filtered by category and applies visual inventory warnings
+   * Sorts product array in memory based on current active sort setting
+   * @param {Array<Object>} products
+   * @returns {Array<Object>}
+   */
+  applyProductSorting(products) {
+    if (!Array.isArray(products) || products.length <= 1) return products;
+
+    return [...products].sort((a, b) => {
+      switch (this.currentSort) {
+        case "name-asc":
+          return (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" });
+        case "name-desc":
+          return (b.name || "").localeCompare(a.name || "", undefined, { numeric: true, sensitivity: "base" });
+        case "price-asc":
+          return (Number(a.price) || 0) - (Number(b.price) || 0);
+        case "price-desc":
+          return (Number(b.price) || 0) - (Number(a.price) || 0);
+        case "date-desc": {
+          const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tB - tA;
+        }
+        case "date-asc": {
+          const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tA - tB;
+        }
+        case "default":
+        default:
+          return 0;
+      }
+    });
+  },
+
+  /**
+   * Loads products filtered by category, applies sorting, and renders cards.
+   * Dynamically ignores fallback SVG placeholders and triggers full-box text rendering.
    * @param {string} categoryId
    */
   async loadProducts(categoryId = "all") {
     if (!this.elements.productGrid) return;
 
     this.currentCategory = categoryId;
-    const products = await DB.getProducts(categoryId);
+    const rawProducts = await DB.getProducts(categoryId);
+    const sortedProducts = this.applyProductSorting(rawProducts);
     const generalThreshold = parseInt(localStorage.getItem("pos_general_low_stock_threshold") || "5", 10);
 
-    this.elements.productGrid.innerHTML = products.map((prod) => {
+    // Update active category title in workspace header bar
+    if (this.elements.catalogActiveCategoryTitle) {
+      if (categoryId === "all") {
+        this.elements.catalogActiveCategoryTitle.textContent = "All Items";
+      } else {
+        const catObj = await DB.getCategoryById(categoryId);
+        this.elements.catalogActiveCategoryTitle.textContent = catObj ? catObj.name : "Products";
+      }
+    }
+
+    if (sortedProducts.length === 0) {
+      this.elements.productGrid.innerHTML = `
+        <div class="empty-catalog-message">
+          <span>No products found in this category.</span>
+        </div>
+      `;
+      return;
+    }
+
+    this.elements.productGrid.innerHTML = sortedProducts.map((prod) => {
       const isMon = Boolean(prod.isMonitored);
       let badgeHtml = "";
       let overlayHtml = "";
@@ -213,19 +312,29 @@ export const CatalogUI = {
         }
       }
 
-      return `
-        <div class="${cardClasses}" data-id="${prod.id}">
+      // Detect if product has a genuine image asset, ignoring SVG fallback placeholders
+      const hasImage = isValidProductImage(prod.image);
+      cardClasses += hasImage ? " has-image" : " text-only-card";
+
+      const imgBlock = hasImage
+        ? `
           <div class="prod-img-wrap">
-            ${badgeHtml}
-            ${overlayHtml}
             <img 
               class="prod-img" 
-              src="${prod.image || FALLBACK_IMG}" 
+              src="${prod.image}" 
               alt="${prod.name}" 
               loading="lazy" 
-              onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" 
+              onerror="this.onerror=null;const card=this.closest('.product-card');if(card){card.classList.remove('has-image');card.classList.add('text-only-card');}this.parentElement.remove();" 
             />
           </div>
+        `
+        : "";
+
+      return `
+        <div class="${cardClasses}" data-id="${prod.id}">
+          ${badgeHtml}
+          ${overlayHtml}
+          ${imgBlock}
           <div class="prod-info">
             <span class="prod-title">${prod.name}</span>
             <div class="price">₱${Number(prod.price).toFixed(2)}</div>
@@ -269,16 +378,25 @@ export const CatalogUI = {
         stockHint = `<span class="quick-card-stock out">Unavail</span>`;
       }
 
-      return `
-        <button type="button" class="quick-card${disabledClass}" data-id="${item.id}" title="Quick Add: ${item.name}">
+      const hasImage = isValidProductImage(item.image);
+      const quickClasses = `quick-card${disabledClass}${hasImage ? "" : " text-only-quick"}`;
+
+      const thumbHtml = hasImage
+        ? `
           <div class="quick-card-thumb">
             <img 
-              src="${item.image || FALLBACK_IMG}" 
+              src="${item.image}" 
               alt="${item.name}" 
               loading="lazy" 
-              onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" 
+              onerror="this.onerror=null;const q=this.closest('.quick-card');if(q){q.classList.add('text-only-quick');}this.parentElement.remove();" 
             />
           </div>
+        `
+        : "";
+
+      return `
+        <button type="button" class="${quickClasses}" data-id="${item.id}" title="Quick Add: ${item.name}">
+          ${thumbHtml}
           <div class="quick-card-details">
             <span class="quick-card-title">${item.name}</span>
             <div class="quick-card-meta">
@@ -309,4 +427,4 @@ export const CatalogUI = {
   }
 };
 
-// REMARK: CATALOG_UI_JS_MODULARIZATION_COMPLETE
+// REMARK: CATALOG_UI_JS_FILTER_PLACEHOLDER_SVGS_COMPLETE

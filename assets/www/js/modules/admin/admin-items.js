@@ -2,8 +2,8 @@
  * Module Description: Admin Product Catalog & Camera Barcode Scanner Sub-Module
  * Manages Product Item CRUD, pricing, barcode association, category assignments,
  * image uploads via FileReader (Base64), inventory tracking flags, and live
- * real-time video barcode recognition via ZXing library with defensive camera
- * hardware track cleanup.
+ * real-time video barcode recognition via ZXing library. Does not persist fallback
+ * SVG placeholder strings to database records so text-only tiles can expand naturally.
  */
 
 import { DB } from "../db.js";
@@ -136,12 +136,17 @@ export const AdminItems = {
         const customThreshold = (isMonitored && customThresholdVal !== "") ? Math.max(0, parseInt(customThresholdVal, 10) || 0) : null;
         const isAvailable = isMonitored ? (stockQty > 0) : this.elements.itemAvailableCheckbox.checked;
 
+        // Persist clean image string or empty string; never write fallback placeholder SVG to DB
+        const cleanImage = (this.currentItemImageBase64 && this.currentItemImageBase64.trim() !== "")
+          ? this.currentItemImageBase64.trim()
+          : "";
+
         const payload = {
           name,
           price,
           cat,
           bc,
-          image: this.currentItemImageBase64 || FALLBACK_IMG,
+          image: cleanImage,
           isMonitored,
           stock: stockQty,
           threshold: customThreshold,
@@ -274,11 +279,14 @@ export const AdminItems = {
           : `<span style="color:#64748b;">Unavailable</span>`;
       }
 
+      const isPlaceholder = !prod.image || prod.image === FALLBACK_IMG || prod.image.includes("<svg") || prod.image.includes("PHN2Zy");
+      const displayThumb = isPlaceholder ? FALLBACK_IMG : prod.image;
+
       return `
         <tr>
           <td>
             <img 
-              src="${prod.image || FALLBACK_IMG}" 
+              src="${displayThumb}" 
               alt="${prod.name}" 
               class="admin-table-thumb" 
               onerror="this.onerror=null;this.src='${FALLBACK_IMG}';" 
@@ -338,7 +346,10 @@ export const AdminItems = {
       if (this.elements.itemCatSelect) this.elements.itemCatSelect.value = item.cat;
       if (this.elements.itemPriceInput) this.elements.itemPriceInput.value = item.price;
       if (this.elements.itemBcInput) this.elements.itemBcInput.value = item.bc || "";
-      this.currentItemImageBase64 = item.image || "";
+
+      // Strip legacy placeholder SVG strings so re-saving cleans up the record
+      const isPlaceholder = !item.image || item.image === FALLBACK_IMG || item.image.includes("<svg") || item.image.includes("PHN2Zy");
+      this.currentItemImageBase64 = isPlaceholder ? "" : item.image;
 
       const isMon = Boolean(item.isMonitored);
       if (this.elements.itemMonitoredCheckbox) this.elements.itemMonitoredCheckbox.checked = isMon;
@@ -354,10 +365,11 @@ export const AdminItems = {
       }
 
       if (this.elements.itemPicPreview) {
-        if (item.image) {
-          this.elements.itemPicPreview.src = item.image;
+        if (this.currentItemImageBase64) {
+          this.elements.itemPicPreview.src = this.currentItemImageBase64;
           this.elements.itemPicPreview.classList.remove("hidden");
         } else {
+          this.elements.itemPicPreview.src = "";
           this.elements.itemPicPreview.classList.add("hidden");
         }
       }
@@ -369,7 +381,10 @@ export const AdminItems = {
       if (this.elements.itemBcInput) this.elements.itemBcInput.value = "";
       this.currentItemImageBase64 = "";
       if (this.elements.itemPicInput) this.elements.itemPicInput.value = "";
-      if (this.elements.itemPicPreview) this.elements.itemPicPreview.classList.add("hidden");
+      if (this.elements.itemPicPreview) {
+        this.elements.itemPicPreview.src = "";
+        this.elements.itemPicPreview.classList.add("hidden");
+      }
 
       if (this.elements.itemMonitoredCheckbox) this.elements.itemMonitoredCheckbox.checked = false;
       if (this.elements.itemStockFieldsWrap) this.elements.itemStockFieldsWrap.classList.add("hidden");
@@ -385,4 +400,4 @@ export const AdminItems = {
   }
 };
 
-// REMARK: ADMIN_ITEMS_JS_MODULARIZATION_COMPLETE
+// REMARK: ADMIN_ITEMS_JS_PREVENT_FALLBACK_SAVE_COMPLETE

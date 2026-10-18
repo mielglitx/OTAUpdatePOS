@@ -1,0 +1,317 @@
+/**
+ * Module Description: POS Active Cart, Ticket Panel & Checkout Stylesheet
+ * Manages the right-hand ticket workspace, multi-cart tab bar, line-item table,
+ * quantity editor buttons, item void triggers, statutory 12% VAT calculations,
+ * and cash / GCash QR Ph checkout triggers.
+ */
+
+/* -------------------------------------------------------------
+   1. RIGHT TICKET / CART WORKSPACE CONTAINER
+------------------------------------------------------------- */
+.ticket-panel {
+  background: var(--bg-card);
+  border-left: var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* -------------------------------------------------------------
+   2. MULTI-TICKET ORDER TAB BAR
+------------------------------------------------------------- */
+.ticket-tabs-bar {
+  display: flex;
+  align-items: center;
+  background: var(--bg-alt);
+  border-bottom: var(--border);
+  padding: 3px 5px;
+  gap: 4px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.ticket-tabs-list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.ticket-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--bg-card);
+  border: var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.ticket-tab:hover {
+  border-color: #6366f1;
+  color: var(--text);
+}
+
+.ticket-tab.active {
+  background: var(--primary);
+  color: var(--primary-text);
+  border-color: var(--primary);
+}
+
+.ticket-tab-title {
+  pointer-events: none;
+}
+
+.ticket-tab-count {
+  background: rgba(15, 23, 42, 0.12);
+  padding: 1px 4px;
+  border-radius: 10px;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.ticket-tab.active .ticket-tab-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.ticket-tab-close {
+  font-size: 0.8rem;
+  line-height: 1;
+  margin-left: 2px;
+  opacity: 0.6;
+  border-radius: 50%;
+  padding: 0 2px;
+}
+
+.ticket-tab-close:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+
+.btn-new-ticket {
+  padding: 3px 6px !important;
+  font-size: 0.7rem !important;
+  font-weight: 800;
+  white-space: nowrap;
+  background: var(--bg-card);
+  border-color: var(--border);
+}
+
+/* -------------------------------------------------------------
+   3. TICKET HEADER & ACTIVE STATUS
+------------------------------------------------------------- */
+.ticket-header {
+  padding: 5px 8px;
+  border-bottom: var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ticket-header h3 {
+  font-size: 0.82rem;
+}
+
+.ticket-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-danger-outline {
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  background: transparent;
+  padding: 2px 5px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+/* -------------------------------------------------------------
+   4. CART TABLE, QUANTITY BUTTONS & VOID TRIGGERS
+------------------------------------------------------------- */
+.ticket-scroll { 
+  flex: 1; 
+  overflow-y: auto; 
+}
+
+.ticket-table { 
+  width: 100%; 
+  border-collapse: collapse; 
+  font-size: clamp(0.7rem, 0.85vw, 0.78rem); 
+}
+
+.ticket-table th { 
+  background: var(--bg-alt); 
+  padding: 5px 6px; 
+  border-bottom: var(--border); 
+  text-align: left; 
+}
+
+.ticket-table td { 
+  padding: 5px 6px; 
+  border-bottom: var(--border); 
+  vertical-align: middle; 
+}
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+.btn-cart-qty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 2px 4px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--primary);
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-cart-qty:hover {
+  background: #e0e7ff;
+  border-color: #6366f1;
+  color: #4338ca;
+}
+
+body[data-theme="basic"] .btn-cart-qty {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+  border-radius: 0 !important;
+}
+
+body[data-theme="basic"] .btn-cart-qty:hover {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+.btn-row-void {
+  background: #fee2e2;
+  border: 1px solid #f87171;
+  color: #b91c1c;
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.68rem;
+}
+
+/* -------------------------------------------------------------
+   5. TICKET FOOTER, 12% VAT BREAKDOWN & CHECKOUT ACTIONS
+------------------------------------------------------------- */
+.ticket-footer {
+  border-top: var(--border);
+  padding: clamp(5px, 1vh, 8px);
+  background: var(--bg-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.bill-row { 
+  display: flex; 
+  justify-content: space-between; 
+  font-size: clamp(0.7rem, 0.85vw, 0.78rem); 
+  color: var(--text-muted); 
+}
+
+.total-row {
+  font-size: clamp(0.95rem, 1.4vh, 1.15rem);
+  font-weight: 800;
+  color: var(--text);
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 3px;
+  margin-top: 2px;
+}
+
+.checkout-grid { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 5px; 
+  margin-top: 3px; 
+}
+
+.btn-pay {
+  border: none;
+  border-radius: var(--radius);
+  padding: clamp(5px, 1.2vh, 9px) 4px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: bold;
+  font-size: 0.78rem;
+}
+
+.btn-pay kbd { 
+  font-size: 0.58rem; 
+  opacity: 0.8; 
+  margin-top: 1px; 
+}
+
+.btn-cash { background: #16a34a; }
+.btn-gcash { background: #005ce6; }
+
+/* -------------------------------------------------------------
+   6. RESPONSIVE TICKET BREAKPOINTS
+------------------------------------------------------------- */
+@media (orientation: landscape) and (max-height: 480px) {
+  .ticket-tabs-bar {
+    padding: 2px 4px;
+  }
+  .ticket-tab {
+    padding: 2px 5px;
+    font-size: 0.66rem;
+  }
+  .ticket-header {
+    padding: 3px 6px;
+  }
+  .ticket-header h3 {
+    font-size: 0.78rem;
+  }
+  .ticket-table {
+    font-size: 0.68rem;
+  }
+  .ticket-table th, 
+  .ticket-table td {
+    padding: 3px 5px;
+  }
+  .ticket-footer {
+    padding: 4px 5px;
+    gap: 2px;
+  }
+  .bill-row {
+    font-size: 0.66rem;
+  }
+  .total-row {
+    font-size: 0.9rem;
+    padding-top: 2px;
+  }
+  .btn-pay {
+    padding: 4px;
+    font-size: 0.72rem;
+  }
+}
+
+/* REMARK: TICKET_CSS_CART_AND_TOTALS_COMPLETE */

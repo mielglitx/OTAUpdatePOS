@@ -2,8 +2,8 @@
  * Module Description: Back-Office Administration Master Facade & Portal Controller
  * Central architectural facade orchestrating administration sub-modules:
  * AdminSales, AdminItems, AdminInventory, AdminCategories, AdminUsers,
- * AdminStore, and AdminSync. Manages administrator screen display security
- * gates and tab navigation routing.
+ * AdminStore, AdminSync, and AdminHotspot. Manages administrator screen display security
+ * gates, sub-module lifecycle initialization, and tab navigation routing.
  */
 
 import { Session } from "./session.js";
@@ -14,6 +14,8 @@ import { AdminCategories } from "./admin/admin-categories.js";
 import { AdminUsers } from "./admin/admin-users.js";
 import { AdminStore } from "./admin/admin-store.js";
 import { AdminSync } from "./admin/admin-sync.js";
+import { AdminHotspot } from "./admin/admin-hotspot.js";
+import { AdminBackup } from "./admin/admin-backup.js";
 
 export const AdminUI = {
   elements: {},
@@ -28,6 +30,8 @@ export const AdminUI = {
   users: AdminUsers,
   store: AdminStore,
   sync: AdminSync,
+  hotspot: AdminHotspot,
+  backup: AdminBackup,
 
   /**
    * Initializes master portal DOM bindings and bootstraps all sub-modules
@@ -87,6 +91,8 @@ export const AdminUI = {
     this.users.init(this.callbacks);
     this.store.init(this.callbacks);
     this.sync.init(this.callbacks);
+    this.hotspot.init(this.callbacks);
+    this.backup.init(this.callbacks);
   },
 
   /**
@@ -120,6 +126,10 @@ export const AdminUI = {
       await this.store.loadStoreSettings();
     } else if (tabName === "sync") {
       await this.sync.loadSyncSettings();
+    } else if (tabName === "hotspot") {
+      await this.hotspot.loadHotspotSettings();
+    } else if (tabName === "backup") {
+      await this.backup.loadBackupSettings();
     }
   },
 
@@ -145,4 +155,4 @@ export const AdminUI = {
   }
 };
 
-// REMARK: ADMIN_UI_JS_MODULARIZATION_COMPLETE
+// REMARK: ADMIN_UI_JS_HOTSPOT_MODULE_WIRED_COMPLETE

@@ -57,12 +57,51 @@ export const AdminSync = {
     if (this.elements.btnSaveSyncConfig) {
       this.elements.btnSaveSyncConfig.onclick = async () => {
         const source = this.elements.syncSourceSelect ? this.elements.syncSourceSelect.value : "firebase";
+        const gasUrl = this.elements.syncGasUrl ? this.elements.syncGasUrl.value.trim() : "";
+        const gasSecret = this.elements.syncGasSecret ? this.elements.syncGasSecret.value.trim() : "";
+        const firebaseUrl = this.elements.syncFirebaseUrl ? this.elements.syncFirebaseUrl.value.trim() : "";
+        const firebaseAuth = this.elements.syncFirebaseAuth ? this.elements.syncFirebaseAuth.value.trim() : "";
+
+        if (source === "gas" && gasUrl) {
+          if (gasUrl.includes("docs.google.com/spreadsheets")) {
+            alert(
+              "⚠️ Invalid Google Apps Script Web App URL:\n\n" +
+              "You entered a Google Spreadsheet link (docs.google.com/spreadsheets/...). This will cause HTTP 405 error.\n\n" +
+              "To get the correct URL:\n" +
+              "1. In your Google Spreadsheet, click Extensions > Apps Script.\n" +
+              "2. Paste Code.gs and click Save.\n" +
+              "3. Click Deploy > New deployment (or Manage deployments).\n" +
+              "4. Select Web app.\n" +
+              "5. Set 'Execute as' to 'Me' and 'Who has access' to 'Anyone'.\n" +
+              "6. Copy the Web App URL that ends with '/exec'."
+            );
+            return;
+          }
+          if (gasUrl.includes("script.google.com/d/") || gasUrl.includes("/edit")) {
+            alert(
+              "⚠️ Invalid Google Apps Script Web App URL:\n\n" +
+              "You entered the Apps Script Editor URL. This will cause HTTP 405 error.\n\n" +
+              "Please click Deploy > Manage deployments > Copy Web app URL (ending in '/exec')."
+            );
+            return;
+          }
+          if (!gasUrl.endsWith("/exec")) {
+            const proceed = confirm(
+              "⚠️ URL Warning:\n\n" +
+              "A Google Apps Script Web App URL normally ends with '/exec'.\n" +
+              "Your URL does not end in '/exec', which may cause HTTP 405 errors.\n\n" +
+              "Do you want to save it anyway?"
+            );
+            if (!proceed) return;
+          }
+        }
+
         const payload = {
           source,
-          firebaseUrl: this.elements.syncFirebaseUrl ? this.elements.syncFirebaseUrl.value.trim() : "",
-          firebaseAuth: this.elements.syncFirebaseAuth ? this.elements.syncFirebaseAuth.value.trim() : "",
-          gasUrl: this.elements.syncGasUrl ? this.elements.syncGasUrl.value.trim() : "",
-          gasSecret: this.elements.syncGasSecret ? this.elements.syncGasSecret.value.trim() : ""
+          firebaseUrl,
+          firebaseAuth,
+          gasUrl,
+          gasSecret
         };
 
         await DB.saveSyncConfig(payload);
@@ -121,9 +160,13 @@ export const AdminSync = {
  * INSTRUCTIONS:
  * 1. Open your Google Spreadsheet.
  * 2. Go to Extensions > Apps Script.
- * 3. Replace all existing text in Code.gs with this complete code.
- * 4. Click "Deploy" > "Manage deployments" > Edit (pencil) > New version > Deploy.
- * 5. Ensure access is set to: "Anyone" (or "Anyone with Google Account").
+ * 3. Replace all existing text in Code.gs with this complete code and click Save.
+ * 4. Click "Deploy" > "New deployment" (or "Manage deployments" > Edit > New version).
+ * 5. Select type: "Web app".
+ * 6. Execute as: "Me" (your Google account).
+ * 7. Who has access: "Anyone" (⚠️ CRITICAL: Do NOT select "Only myself", or requests will fail with HTTP 405).
+ * 8. Click "Deploy", approve permissions if prompted, and copy the Web App URL (ends with /exec).
+ * 9. Paste the URL into POS Cloud Settings > "Google Apps Script Web App URL".
  */
 
 function doPost(e) {
@@ -135,6 +178,7 @@ function doPost(e) {
     if (!rawData) {
       return ContentService.createTextOutput(JSON.stringify({
         success: false,
+        status: "error",
         error: "No POST body received"
       })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -190,8 +234,23 @@ function doPost(e) {
       ]);
     });
 
+    // Update inventory stock levels if provided
+    if (payload.stockUpdates && typeof payload.stockUpdates === "object") {
+      var prodSheet = ss.getSheetByName("Products");
+      if (prodSheet && prodSheet.getLastRow() > 1) {
+        var prodData = prodSheet.getDataRange().getValues();
+        for (var j = 1; j < prodData.length; j++) {
+          var pId = String(prodData[j][0]);
+          if (payload.stockUpdates[pId] !== undefined && payload.stockUpdates[pId].stock !== undefined) {
+            prodSheet.getRange(j + 1, 8).setValue(payload.stockUpdates[pId].stock);
+          }
+        }
+      }
+    }
+
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
+      status: "success",
       message: "Synced " + orders.length + " order(s) successfully",
       count: orders.length
     })).setMimeType(ContentService.MimeType.JSON);
@@ -199,6 +258,7 @@ function doPost(e) {
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({
       success: false,
+      status: "error",
       error: err.toString()
     })).setMimeType(ContentService.MimeType.JSON);
   } finally {

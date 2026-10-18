@@ -1,0 +1,2027 @@
+/**
+ * Module Description: Modal Dialogs, Hardware Interfaces & Administrative Components
+ * Houses styles for the responsive dual-pane cashier login screen, on-screen touch numpads,
+ * WebRTC video camera scanning reticles with animated laser sweeps, thermal receipt preview
+ * simulators (58mm/80mm monospaced simulation), customer pager selection grids,
+ * post-payment cash change dialogs, the back-office administrative portal, dedicated
+ * Add Printer dialog, expanded active printer viewport, and MikroTik JSON export modal.
+ */
+
+/* -------------------------------------------------------------
+   FULL-SCREEN LOGIN & LOCK SCREEN (RESPONSIVE DUAL-PANE)
+------------------------------------------------------------- */
+.login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-app);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(6px, 1.5vh, 16px);
+}
+
+.login-card {
+  background: var(--bg-card);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: clamp(10px, 2vh, 20px);
+  width: 100%;
+  max-width: min(720px, 96vw);
+  max-height: min(96vh, 96dvh);
+  display: flex;
+  flex-direction: row;
+  gap: clamp(10px, 2vw, 20px);
+  align-items: stretch;
+  overflow-y: auto;
+}
+
+.login-pane-left {
+  flex: 1.1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.login-pane-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.login-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+
+.login-logo-badge {
+  font-size: clamp(1.2rem, 3vh, 1.8rem);
+  margin-bottom: 2px;
+}
+
+.login-header h2 {
+  font-size: clamp(0.95rem, 2.2vh, 1.2rem);
+  font-weight: 800;
+}
+
+.login-header p {
+  font-size: clamp(0.68rem, 1.4vh, 0.78rem);
+  color: var(--text-muted);
+}
+
+.login-footer-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 4px;
+  text-align: center;
+}
+
+/* -------------------------------------------------------------
+   CAMERA SCANNER VIEWPORTS (QR & 1D BARCODES)
+------------------------------------------------------------- */
+.camera-scanner-wrap {
+  position: relative;
+  width: 100%;
+  height: clamp(90px, 20vh, 150px);
+  background: #0f172a;
+  border: var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#login-camera-preview,
+#item-barcode-video,
+#void-camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-scan-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-reticle {
+  width: min(76px, 55%);
+  height: min(76px, 55%);
+  border: 2px dashed rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+}
+
+.camera-laser {
+  position: absolute;
+  width: 78%;
+  height: 2px;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+  animation: laserSweep 1.8s infinite ease-in-out;
+}
+
+.barcode-reticle {
+  width: 78% !important;
+  height: 60px !important;
+  border: 2px dashed #38bdf8 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+}
+
+.barcode-laser {
+  width: 76% !important;
+  height: 2px !important;
+  background: #ef4444 !important;
+  box-shadow: 0 0 8px #ef4444 !important;
+  animation: laserSweepBarcode 1.4s infinite ease-in-out !important;
+}
+
+@keyframes laserSweep {
+  0%   { top: 22%; opacity: 0.3; }
+  50%  { top: 74%; opacity: 1; }
+  100% { top: 22%; opacity: 0.3; }
+}
+
+@keyframes laserSweepBarcode {
+  0%   { top: 32%; opacity: 0.4; }
+  50%  { top: 68%; opacity: 1; }
+  100% { top: 32%; opacity: 0.4; }
+}
+
+.camera-status-pill {
+  position: absolute;
+  bottom: 4px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #cbd5e1;
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  pointer-events: none;
+  letter-spacing: 0.2px;
+}
+
+/* -------------------------------------------------------------
+   NUMPAD AND PIN CONTROLS
+------------------------------------------------------------- */
+.login-input-wrap {
+  width: 100%;
+}
+
+.login-input-wrap input {
+  width: 100%;
+  padding: clamp(5px, 1.2vh, 10px);
+  font-size: clamp(1.1rem, 2.5vh, 1.4rem);
+  letter-spacing: clamp(6px, 1.5vw, 10px);
+  text-align: center;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-alt);
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+
+.login-error {
+  color: #dc2626;
+  font-size: clamp(0.7rem, 1.3vh, 0.78rem);
+  min-height: 1.1em;
+  font-weight: 600;
+  text-align: center;
+}
+
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(4px, 0.8vh, 6px);
+}
+
+.btn-num {
+  padding: clamp(6px, 1.4vh, 12px) 0;
+  font-size: clamp(0.95rem, 2.2vh, 1.2rem);
+  font-weight: 700;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-alt);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  touch-action: manipulation;
+}
+
+.btn-num-action {
+  font-size: clamp(0.75rem, 1.5vh, 0.9rem);
+}
+
+.btn-clear {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.btn-submit {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* -------------------------------------------------------------
+   CUSTOMER BUZZER / PAGER SELECTION GRID STYLING
+------------------------------------------------------------- */
+.pager-selection-box {
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pager-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pager-header label {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pager-selected-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  background: var(--primary);
+  color: var(--primary-text);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.pager-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+  gap: 5px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.btn-pager-num {
+  padding: 6px 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg-card);
+  border: var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-pager-num:hover {
+  background: #e0e7ff;
+  border-color: #6366f1;
+}
+
+.btn-pager-num.active {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #15803d !important;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.25);
+}
+
+/* -------------------------------------------------------------
+   PAYMENT CONFIRMATION, TENDER & CHANGE CALCULATOR STYLES
+------------------------------------------------------------- */
+#modal-cash-confirm .modal-box,
+#modal-gcash-confirm .modal-box,
+#modal-stock-adjust .modal-box,
+#modal-barcode-scanner .modal-box,
+#modal-cart-qty .modal-box {
+  width: min(380px, 94vw);
+  padding: 12px;
+  gap: 8px;
+}
+
+.payment-confirm-summary {
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-bottom: 2px;
+}
+
+.tender-large-input {
+  width: 100% !important;
+  font-size: 1.15rem !important;
+  font-weight: 800;
+  text-align: right;
+  letter-spacing: 1px;
+  padding: 6px 10px !important;
+}
+
+.quick-cash-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin: 2px 0;
+  width: 100%;
+}
+
+.btn-quick-cash,
+.btn-quick-stock {
+  padding: 6px 3px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.payment-change-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  margin-top: 2px;
+  width: 100%;
+}
+
+.change-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #166534;
+}
+
+.change-amount {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #15803d;
+}
+
+/* -------------------------------------------------------------
+   POST-PAYMENT CASH CHANGE DUE RESULT MODAL STYLES
+------------------------------------------------------------- */
+.modal-box-change-result {
+  width: min(390px, 94vw) !important;
+  padding: 22px 18px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.change-result-icon {
+  font-size: 2.8rem;
+  line-height: 1;
+}
+
+.change-result-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-top: -2px;
+}
+
+.change-result-banner {
+  background: #16a34a;
+  color: #ffffff;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  width: 100%;
+  margin: 6px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+}
+
+.change-result-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  opacity: 0.9;
+}
+
+.change-result-val {
+  font-size: 2.8rem;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0.5px;
+}
+
+.change-result-summary {
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* -------------------------------------------------------------
+   ADMIN DASHBOARD SCREEN & TABS
+------------------------------------------------------------- */
+.admin-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-app);
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-topbar {
+  height: 48px;
+  background: var(--bg-card);
+  border-bottom: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.admin-nav-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.btn-admin-tab {
+  padding: 6px 10px;
+  border: var(--border);
+  background: var(--bg-alt);
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.btn-admin-tab.active {
+  background: var(--primary);
+  color: var(--primary-text);
+  border-color: var(--primary);
+}
+
+.admin-content {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-tab-pane {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.admin-tab-pane.active {
+  display: flex;
+}
+
+.admin-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.metric-card {
+  background: var(--bg-card);
+  border: var(--border);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-title {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.metric-card h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.admin-table-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-generate-report {
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+}
+
+.btn-print-report {
+  background: var(--primary);
+  color: var(--primary-text);
+  border: none;
+}
+
+.admin-table-wrap {
+  flex: 1;
+  background: var(--bg-card);
+  border: var(--border);
+  overflow-y: auto;
+  min-height: 180px;
+}
+
+.admin-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.admin-data-table th {
+  background: var(--bg-alt);
+  padding: 8px 10px;
+  border-bottom: var(--border);
+  text-align: left;
+  font-weight: 700;
+}
+
+.admin-data-table td {
+  padding: 6px 10px;
+  border-bottom: var(--border);
+}
+
+.admin-data-table tr:hover {
+  background: var(--bg-alt);
+}
+
+.admin-table-thumb {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: var(--border);
+  display: block;
+}
+
+.btn-action-sm {
+  padding: 3px 6px;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-alt);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-right: 3px;
+}
+
+.btn-action-del {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #f87171;
+}
+
+.btn-action-qr {
+  background: #e0e7ff;
+  color: #3730a3;
+  border-color: #a5b4fc;
+}
+
+.btn-action-stock {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #93c5fd;
+}
+
+.btn-action-toggle {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* -------------------------------------------------------------
+   ADMIN CATEGORY MANUAL RE-ORDERING & DRAG-AND-DROP CONTROLS
+------------------------------------------------------------- */
+.drag-handle-header {
+  width: 36px;
+  color: var(--text-muted);
+}
+
+.drag-handle-cell {
+  width: 36px;
+  padding: 4px 6px !important;
+}
+
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+  padding: 2px 6px;
+  border: 1px dashed var(--border);
+  background: var(--bg-alt);
+  line-height: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  background: #e0e7ff;
+  color: #4338ca;
+  border-color: #6366f1;
+}
+
+.drag-handle-disabled {
+  font-size: 0.8rem;
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cat-row-draggable {
+  transition: background-color 0.15s ease;
+}
+
+.cat-order-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cat-order-pill {
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  min-width: 32px;
+  text-align: center;
+  color: var(--text);
+}
+
+.cat-order-fixed {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.btn-order-move {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: bold;
+  background: var(--bg-card);
+  border: var(--border);
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+}
+
+.btn-order-move:hover:not(:disabled) {
+  background: #e0e7ff;
+  border-color: #6366f1;
+  color: #4338ca;
+}
+
+.btn-order-move:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* -------------------------------------------------------------
+   STAFF QR LOGIN BADGE MODAL & CARD PREVIEW
+------------------------------------------------------------- */
+.modal-box-staff-badge {
+  width: 340px;
+  max-width: 95vw;
+}
+
+.staff-badge-card-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  margin: 4px 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.staff-qr-canvas {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+}
+
+/* -------------------------------------------------------------
+   CLOUD SYNC & DATABASE SETTINGS STYLING
+------------------------------------------------------------- */
+.sync-settings-card {
+  background: var(--bg-card);
+  border: var(--border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sync-conditional-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-status-console {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.sync-status-console label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.sync-status-console pre {
+  background: #0f172a;
+  color: #38bdf8;
+  padding: 10px;
+  border-radius: var(--radius);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  max-height: 140px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* -------------------------------------------------------------
+   MIKROTIK HOTSPOT DASHBOARD, PRESETS & ACCORDION STYLES
+------------------------------------------------------------- */
+.stat-hotspot-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--bg-alt);
+  border: var(--border);
+  color: var(--text-muted);
+}
+
+.duration-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.btn-duration-preset {
+  padding: 6px 4px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+
+.btn-duration-preset:hover {
+  background: #e0e7ff;
+  border-color: #6366f1;
+}
+
+.btn-duration-preset.active {
+  background: var(--primary) !important;
+  color: var(--primary-text) !important;
+  border-color: var(--primary) !important;
+}
+
+.custom-duration-inputs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.advanced-accordion-container {
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.btn-toggle-advanced {
+  background: var(--bg-alt);
+  border: var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px;
+  text-align: center;
+}
+
+.btn-toggle-advanced:hover {
+  background: #e2e8f0;
+  color: var(--text);
+}
+
+.advanced-accordion-body {
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  margin-top: 6px;
+}
+
+.quick-batch-group {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-quick-batch {
+  padding: 4px 8px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+
+.btn-quick-batch:hover {
+  background: #e0e7ff;
+  border-color: #6366f1;
+}
+
+.btn-quick-batch.active {
+  background: var(--primary) !important;
+  color: var(--primary-text) !important;
+  border-color: var(--primary) !important;
+}
+
+/* MikroTik Backup JSON Inspector Textarea */
+.export-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #090d16;
+  color: #38bdf8;
+  border: 1.5px solid #1e293b;
+  border-radius: var(--radius);
+  padding: 10px;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  resize: vertical;
+  outline: none;
+}
+
+[data-theme="basic"] .export-textarea {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+/* -------------------------------------------------------------
+   THERMAL PRINT PREVIEW MODAL & RECEIPT SIMULATION STYLES
+------------------------------------------------------------- */
+.modal-box-preview {
+  width: min(760px, 96vw) !important;
+  max-height: min(94vh, 94dvh);
+  background: var(--bg-card);
+  padding: 14px;
+}
+
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  margin: 4px 0 10px 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preview-toolbar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-toolbar-item label {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.preview-width-select {
+  padding: 4px 8px !important;
+  font-size: 0.78rem !important;
+  width: auto !important;
+  min-width: 160px;
+  background: var(--bg-card);
+  border: var(--border);
+}
+
+.preview-tip-text {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.thermal-preview-container {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: flex-start;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 10px 6px;
+  background: #334155;
+  border-radius: var(--radius);
+}
+
+.preview-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.preview-column-header {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.thermal-paper-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.thermal-paper-slip {
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-family: "Courier New", Courier, monospace !important;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  padding: 14px 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  border: 1px solid #cbd5e1;
+  position: relative;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.thermal-paper-58mm {
+  width: 290px;
+  max-width: 100%;
+}
+
+.thermal-paper-80mm {
+  width: 380px;
+  max-width: 100%;
+}
+
+.receipt-sample-tag {
+  text-align: center;
+  font-weight: 900;
+  font-size: 0.7rem;
+  color: #dc2626;
+  margin-bottom: 4px;
+}
+
+.receipt-center {
+  text-align: center;
+}
+
+.receipt-right {
+  text-align: right;
+}
+
+.receipt-dbl-height {
+  font-size: 1.15em;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.receipt-pager-box {
+  border: 2px dashed #000000;
+  padding: 4px 6px;
+  margin: 4px 0;
+  background: #f8fafc;
+}
+
+.receipt-divider {
+  overflow: hidden;
+  line-height: 0.9;
+  letter-spacing: -0.5px;
+  user-select: none;
+}
+
+.receipt-items-pre {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  margin: 0;
+  white-space: pre;
+}
+
+.receipt-bold-items {
+  font-weight: 900;
+}
+
+.receipt-total-line {
+  font-size: 1.05em;
+  padding-top: 2px;
+}
+
+.receipt-logo-img {
+  max-width: 110px;
+  max-height: 50px;
+  object-fit: contain;
+  margin: 0 auto 4px auto;
+  display: block;
+  filter: grayscale(100%) contrast(150%);
+}
+
+.receipt-cut-line {
+  text-align: center;
+  font-size: 0.65rem;
+  color: #64748b;
+  margin-top: 10px;
+  padding-top: 4px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+/* Simulated Wi-Fi Access Pass Elements */
+.receipt-qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  margin: 4px 0;
+}
+
+.receipt-sim-qr {
+  font-weight: 800;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border: 2px dashed #000000;
+  background: #f8fafc;
+  display: inline-block;
+  margin-bottom: 3px;
+  letter-spacing: 0.5px;
+}
+
+.receipt-qr-caption {
+  font-size: 0.65rem;
+  color: #475569;
+  word-break: break-all;
+  max-width: 90%;
+  line-height: 1.1;
+}
+
+.receipt-voucher-details {
+  margin: 4px 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.receipt-small-hint {
+  font-size: 0.68rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* -------------------------------------------------------------
+   MODALS & FORMS (ADAPTIVE TWO-PANE & SCALING)
+------------------------------------------------------------- */
+.pos-modal {
+  margin: auto;
+  border: none;
+  background: transparent;
+  padding: 0;
+  overflow: visible;
+}
+
+.pos-modal::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(3px);
+}
+
+.modal-box {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: var(--border);
+  padding: clamp(10px, 2vh, 18px);
+  width: min(400px, 95vw);
+  max-height: min(94vh, 94dvh);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.modal-box-wide {
+  width: min(520px, 95vw);
+}
+
+.modal-box-void {
+  width: min(620px, 96vw);
+}
+
+.modal-box-qty {
+  width: min(320px, 94vw);
+}
+
+.modal-box-void-confirm {
+  width: min(360px, 94vw);
+}
+
+.modal-two-pane {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 4px;
+}
+
+.modal-pane-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.modal-pane-right {
+  flex: 1.1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+/* -------------------------------------------------------------
+   COMPACT HIGH-CONTRAST THERMAL PRINTER HUB & HARDWARE CARDS
+------------------------------------------------------------- */
+.modal-box-printer {
+  width: min(640px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="modern"] .modal-box-printer {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+[data-theme="basic"] .modal-box-printer {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.printer-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+}
+
+.printer-modal-header h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+[data-theme="modern"] .printer-modal-header h3 {
+  color: #ffffff;
+}
+
+.printer-hint-text {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 1px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+[data-theme="basic"] .printer-hint-text {
+  color: #64748b;
+}
+
+.printer-section-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+[data-theme="basic"] .printer-section-title {
+  color: #1e293b;
+}
+
+.printer-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.printer-filter-select {
+  font-size: 0.72rem;
+  padding: 3px 6px;
+  background: #1e293b;
+  border: 1.5px solid #475569;
+  border-radius: var(--radius);
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+}
+
+[data-theme="basic"] .printer-filter-select {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+/* Active Printers Container with Horizontal Overflow Guard */
+.printer-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  height: auto !important;
+  min-height: 48px;
+  max-height: 140px;
+  overflow-y: auto;
+  overflow-x: hidden !important;
+  padding: 4px;
+  background: #090d16;
+  border: 1.5px solid #1e293b;
+  border-radius: var(--radius);
+}
+
+/* Expanded Viewport for Dedicated Roster Modal */
+.printer-list-container-expanded {
+  min-height: 220px !important;
+  max-height: clamp(260px, 58vh, 480px) !important;
+  flex: 1;
+}
+
+[data-theme="basic"] .printer-list-container {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+/* 46px Compact Strip Card */
+.printer-card {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  min-height: 46px !important;
+  height: auto !important;
+  background: #1e293b;
+  border: 1.5px solid #334155;
+  border-radius: 6px;
+  padding: 5px 8px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 8px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.printer-card:hover {
+  border-color: #64748b;
+  background: #243248;
+}
+
+[data-theme="basic"] .printer-card {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.printer-card-left {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Strict Checkbox Sizing Override */
+.modal-box input.printer-checkbox,
+.printer-checkbox {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  flex: 0 0 18px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer;
+  accent-color: #16a34a;
+}
+
+/* Flex Container for Printer Name and Meta */
+.printer-card-info {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.printer-card-title {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 5px !important;
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #ffffff !important;
+  line-height: 1.2;
+  margin: 0;
+}
+
+[data-theme="basic"] .printer-card-title {
+  color: #0f172a !important;
+}
+
+.printer-name-text {
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+}
+
+[data-theme="basic"] .printer-name-text {
+  color: #0f172a;
+}
+
+/* Monospace Hardware Identifier */
+.printer-card-meta {
+  font-size: 0.70rem;
+  font-weight: 700;
+  font-family: "Courier New", Courier, monospace;
+  color: #38bdf8 !important;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
+  margin: 0;
+}
+
+[data-theme="basic"] .printer-card-meta {
+  color: #0284c7 !important;
+}
+
+/* Compact Badges */
+.badge-role-primary {
+  background: #059669 !important;
+  color: #ffffff !important;
+  border: 1px solid #34d399 !important;
+  font-weight: 800 !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.3px !important;
+  flex-shrink: 0;
+}
+
+.badge-role-secondary {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid #60a5fa !important;
+  font-weight: 800 !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.3px !important;
+  flex-shrink: 0;
+}
+
+.badge-role-both {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  border: 1px solid #a78bfa !important;
+  font-weight: 800 !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.3px !important;
+  flex-shrink: 0;
+}
+
+.badge-ble {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  border: 1px solid #c4b5fd !important;
+  font-weight: 800 !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.3px !important;
+  flex-shrink: 0;
+}
+
+.printer-card-title .badge {
+  font-size: 0.58rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  flex-shrink: 0;
+}
+
+[data-theme="basic"] .printer-card-title .badge {
+  background: #e2e8f0;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+/* Action Controls Container */
+.printer-card-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 5px !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+}
+
+/* Strict Role Dropdown Constraint */
+.modal-box select.printer-role-select,
+.printer-role-select {
+  width: 85px !important;
+  min-width: 85px !important;
+  max-width: 90px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  flex: 0 0 85px !important;
+  padding: 2px 4px !important;
+  font-size: 0.70rem !important;
+  font-weight: 700;
+  font-family: inherit;
+  border: 1.5px solid #475569;
+  border-radius: 4px;
+  background: #0f172a;
+  color: #f8fafc;
+  cursor: pointer;
+  outline: none;
+  margin: 0 !important;
+}
+
+[data-theme="basic"] .printer-role-select {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.btn-test-single-printer {
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border: 1px solid #38bdf8 !important;
+  padding: 2px 8px !important;
+  font-size: 0.70rem !important;
+  font-weight: 800 !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+}
+
+.btn-test-single-printer:hover {
+  background: #0369a1 !important;
+}
+
+.btn-del-printer {
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border: 1px solid #f87171 !important;
+  padding: 2px 6px !important;
+  font-size: 0.70rem !important;
+  font-weight: 800 !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+}
+
+.btn-del-printer:hover {
+  background: #dc2626 !important;
+}
+
+.printer-divider {
+  border: none;
+  border-top: 1.5px solid var(--border);
+  margin: 6px 0;
+}
+
+/* Dedicated "Add New Printer" Form Grid */
+.printer-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #090d16;
+  border: 1.5px solid #1e293b;
+  border-radius: var(--radius);
+  padding: 10px;
+}
+
+[data-theme="basic"] .printer-form-grid {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.printer-conditional-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.usb-scan-input-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+
+.usb-select-flex {
+  flex: 1;
+}
+
+.modal-box input,
+.modal-box select,
+.sync-settings-card input,
+.sync-settings-card select {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  border: 1.5px solid #475569;
+  border-radius: var(--radius);
+  font-family: inherit;
+  background: #1e293b;
+  color: #ffffff;
+  outline: none;
+}
+
+[data-theme="basic"] .modal-box input,
+[data-theme="basic"] .modal-box select,
+[data-theme="basic"] .sync-settings-card input,
+[data-theme="basic"] .sync-settings-card select {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.form-select {
+  cursor: pointer;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.form-group label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+[data-theme="basic"] .form-group label {
+  color: #334155;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  width: 100%;
+}
+
+.form-row-2 > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  width: 100%;
+}
+
+.form-row-3 > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.img-preview-box {
+  width: 100%;
+  height: 75px;
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.img-preview-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 0.75rem;
+  min-height: 1.1em;
+}
+
+.qr-container {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  min-height: 150px;
+}
+
+.text-blue {
+  color: #005ce6;
+}
+
+/* -------------------------------------------------------------
+   INVENTORY & STOCK CONFIGURATION STYLING
+------------------------------------------------------------- */
+.inventory-config-group {
+  background: var(--bg-alt);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin: 2px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* -------------------------------------------------------------
+   INLINE BARCODE INPUT & CAMERA SCANNER BUTTON
+------------------------------------------------------------- */
+.barcode-input-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+}
+
+.barcode-input-group input {
+  flex: 1;
+}
+
+.btn-barcode-scan {
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--bg-alt);
+  border: var(--border);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.input-barcode-success {
+  background-color: #dcfce7 !important;
+  border-color: #16a34a !important;
+  color: #15803d !important;
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+/* -------------------------------------------------------------
+   RESPONSIVE COMPONENT ADJUSTMENTS (PHONES & 7" TABLETS)
+------------------------------------------------------------- */
+@media (orientation: landscape) and (max-height: 480px) {
+  .login-card {
+    padding: 8px 10px;
+    gap: 8px;
+    max-width: 580px;
+  }
+
+  .camera-scanner-wrap {
+    height: clamp(75px, 22vh, 105px);
+  }
+
+  .btn-num {
+    padding: clamp(3px, 1.1vh, 6px) 0;
+    font-size: 0.9rem;
+  }
+
+  .login-input-wrap input {
+    padding: 3px;
+    font-size: 1rem;
+    letter-spacing: 6px;
+  }
+
+  .login-logo-badge {
+    font-size: 1rem;
+  }
+
+  .login-header h2 {
+    font-size: 0.85rem;
+  }
+
+  .modal-box {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .pager-selection-box {
+    padding: 4px 6px;
+    gap: 4px;
+  }
+
+  .pager-grid {
+    max-height: 75px;
+    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+    gap: 3px;
+  }
+
+  .btn-pager-num {
+    padding: 3px 0;
+    font-size: 0.72rem;
+  }
+
+  .thermal-preview-container {
+    flex-direction: column;
+    max-height: 48vh;
+  }
+}
+
+@media (max-width: 640px) and (orientation: portrait) {
+  .login-card {
+    flex-direction: column;
+    max-width: 320px;
+    gap: 8px;
+  }
+
+  .login-pane-left,
+  .login-pane-right {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .modal-two-pane {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .thermal-preview-container {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@media (min-width: 1025px) {
+  .login-card {
+    max-width: 720px;
+    padding: 20px;
+    gap: 22px;
+  }
+
+  .camera-scanner-wrap {
+    height: 150px;
+  }
+}
+
+/* =============================================================
+   SALES REPORT PRINTING & PDF EXPORT STYLES
+   ============================================================= */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  body > * {
+    display: none !important;
+  }
+  .no-print,
+  .printer-modal-header,
+  .modal-actions,
+  .login-screen,
+  nav,
+  aside,
+  header {
+    display: none !important;
+  }
+  
+  dialog#modal-export-sales,
+  dialog#modal-export-sales .modal-box,
+  #printable-sales-report,
+  #printable-sales-report * {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  dialog#modal-export-sales {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  dialog#modal-export-sales .modal-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  #printable-sales-report {
+    width: 100% !important;
+    padding: 10px !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+  }
+
+  #printable-sales-report table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  #printable-sales-report th,
+  #printable-sales-report td {
+    border: 1px solid #94a3b8 !important;
+    padding: 6px 8px !important;
+    font-size: 9.5pt !important;
+    color: #000000 !important;
+  }
+}
+
+/* =============================================================
+   HOTSPOT QR CODE SCANNER ANIMATION
+   ============================================================= */
+@keyframes scanLaser {
+  0% { top: 15%; opacity: 0.9; }
+  50% { top: 85%; opacity: 1; }
+  100% { top: 15%; opacity: 0.9; }
+}
+
+.scan-laser-active {
+  animation: scanLaser 2s infinite ease-in-out;
+}
+
+/* REMARK: COMPONENTS_CSS_EXPANDED_PRINTER_LIST_AND_EXPORT_MODAL_COMPLETE */

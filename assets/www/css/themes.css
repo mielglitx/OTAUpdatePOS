@@ -1,0 +1,270 @@
+/**
+ * Module Description: POS Design Token & Color Theme Definitions
+ * Defines CSS custom properties, surface palettes, border treatments,
+ * active states, and typography tokens for Theme 1 (Basic / Industrial Monospace)
+ * and Theme 2 (Modern / Soft Elevation with Indigo Accents).
+ */
+
+/* -------------------------------------------------------------
+   THEME 1: BASIC (Compact, Monospace, High-Contrast Industrial)
+------------------------------------------------------------- */
+body[data-theme="basic"] {
+  --bg-app: #dcdcdc;
+  --bg-card: #ffffff;
+  --bg-alt: #f0f0f0;
+  --border: 1px solid #111111;
+  --text: #000000;
+  --text-muted: #444444;
+  --primary: #000000;
+  --primary-text: #ffffff;
+  --radius: 0px;
+  --font: "Courier New", Courier, monospace;
+  --shadow: none;
+}
+
+body[data-theme="basic"] .topbar,
+body[data-theme="basic"] .product-card,
+body[data-theme="basic"] .ticket-panel,
+body[data-theme="basic"] .btn-pay,
+body[data-theme="basic"] .modal-box,
+body[data-theme="basic"] .category-sidebar,
+body[data-theme="basic"] .cat-pill,
+body[data-theme="basic"] .cat-img-wrap,
+body[data-theme="basic"] .prod-img-wrap,
+body[data-theme="basic"] .login-card,
+body[data-theme="basic"] .btn-num,
+body[data-theme="basic"] .cashier-pill,
+body[data-theme="basic"] .admin-topbar,
+body[data-theme="basic"] .metric-card,
+body[data-theme="basic"] .admin-data-table th,
+body[data-theme="basic"] .admin-data-table td,
+body[data-theme="basic"] .btn-admin-tab,
+body[data-theme="basic"] .form-select,
+body[data-theme="basic"] .img-preview-box,
+body[data-theme="basic"] .btn-generate-report,
+body[data-theme="basic"] .printer-card,
+body[data-theme="basic"] .printer-role-select,
+body[data-theme="basic"] .printer-filter-select,
+body[data-theme="basic"] .sync-settings-card,
+body[data-theme="basic"] .sync-status-console pre,
+body[data-theme="basic"] .camera-scanner-wrap,
+body[data-theme="basic"] .staff-badge-card-container,
+body[data-theme="basic"] .staff-qr-canvas,
+body[data-theme="basic"] .payment-confirm-summary,
+body[data-theme="basic"] .payment-change-box,
+body[data-theme="basic"] .btn-quick-cash,
+body[data-theme="basic"] .btn-quick-stock,
+body[data-theme="basic"] .inventory-config-group,
+body[data-theme="basic"] .card-stock-badge,
+body[data-theme="basic"] .card-depleted-overlay,
+body[data-theme="basic"] .btn-barcode-scan,
+body[data-theme="basic"] .btn-cart-qty,
+body[data-theme="basic"] .quick-menu-container,
+body[data-theme="basic"] .quick-card,
+body[data-theme="basic"] .pager-selection-box,
+body[data-theme="basic"] .btn-pager-num,
+body[data-theme="basic"] .catalog-header-bar,
+body[data-theme="basic"] .catalog-sort-select,
+body[data-theme="basic"] .cat-order-pill,
+body[data-theme="basic"] .btn-order-move,
+body[data-theme="basic"] .drag-handle,
+body[data-theme="basic"] .preview-toolbar,
+body[data-theme="basic"] .thermal-paper-slip,
+body[data-theme="basic"] .ticket-tabs-bar,
+body[data-theme="basic"] .ticket-tab,
+body[data-theme="basic"] .btn-new-ticket,
+body[data-theme="basic"] .change-result-banner,
+body[data-theme="basic"] .change-result-summary,
+body[data-theme="basic"] .stat-hotspot-pill,
+body[data-theme="basic"] .receipt-sim-qr,
+body[data-theme="basic"] .btn-duration-preset,
+body[data-theme="basic"] .btn-quick-batch,
+body[data-theme="basic"] .advanced-accordion-body {
+  border: var(--border) !important;
+  box-shadow: none !important;
+  border-radius: 0px !important;
+}
+
+body[data-theme="basic"] .payment-change-box {
+  background: #ffffff !important;
+}
+
+body[data-theme="basic"] .change-label,
+body[data-theme="basic"] .change-amount {
+  color: #000000 !important;
+}
+
+body[data-theme="basic"] .category-sidebar {
+  padding: 6px;
+  gap: 6px;
+}
+
+body[data-theme="basic"] .cat-pill {
+  border-radius: 0 !important;
+}
+
+body[data-theme="basic"] .btn-generate-report {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="basic"] .pager-selected-badge {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-radius: 0 !important;
+}
+
+body[data-theme="basic"] .btn-pager-num.active {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+body[data-theme="basic"] .btn-order-move:hover:not(:disabled) {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="basic"] .drop-target-above td {
+  border-top: 2px solid #000000 !important;
+}
+
+body[data-theme="basic"] .drop-target-below td {
+  border-bottom: 2px solid #000000 !important;
+}
+
+body[data-theme="basic"] .is-dragging {
+  background: #dcdcdc !important;
+  opacity: 0.5 !important;
+}
+
+body[data-theme="basic"] .btn-customer-display {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="basic"] .ticket-tab.active {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="basic"] .change-result-banner {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="basic"] .btn-duration-preset.active,
+body[data-theme="basic"] .btn-quick-batch.active {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+body[data-theme="basic"] .product-card.text-only-card {
+  background: #fdfdfd;
+}
+
+/* -------------------------------------------------------------
+   THEME 2: MODERN (Spacious, Rounded, Soft Elevation)
+------------------------------------------------------------- */
+body[data-theme="modern"] {
+  --bg-app: #f4f6f8;
+  --bg-card: #ffffff;
+  --bg-alt: #f8fafc;
+  --border: 1px solid #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --primary: #4f46e5;
+  --primary-text: #ffffff;
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+body[data-theme="modern"] .product-card,
+body[data-theme="modern"] .cat-pill,
+body[data-theme="modern"] .login-card,
+body[data-theme="modern"] .btn-num,
+body[data-theme="modern"] .metric-card,
+body[data-theme="modern"] .btn-admin-tab,
+body[data-theme="modern"] .btn-generate-report,
+body[data-theme="modern"] .printer-card,
+body[data-theme="modern"] .sync-settings-card,
+body[data-theme="modern"] .camera-scanner-wrap,
+body[data-theme="modern"] .staff-badge-card-container,
+body[data-theme="modern"] .payment-confirm-summary,
+body[data-theme="modern"] .payment-change-box,
+body[data-theme="modern"] .btn-quick-cash,
+body[data-theme="modern"] .btn-quick-stock,
+body[data-theme="modern"] .inventory-config-group,
+body[data-theme="modern"] .btn-barcode-scan,
+body[data-theme="modern"] .btn-cart-qty,
+body[data-theme="modern"] .quick-menu-container,
+body[data-theme="modern"] .quick-card,
+body[data-theme="modern"] .pager-selection-box,
+body[data-theme="modern"] .btn-pager-num,
+body[data-theme="modern"] .catalog-header-bar,
+body[data-theme="modern"] .catalog-sort-select,
+body[data-theme="modern"] .cat-order-pill,
+body[data-theme="modern"] .btn-order-move,
+body[data-theme="modern"] .drag-handle,
+body[data-theme="modern"] .preview-toolbar,
+body[data-theme="modern"] .thermal-paper-slip,
+body[data-theme="modern"] .ticket-tab,
+body[data-theme="modern"] .btn-new-ticket,
+body[data-theme="modern"] .change-result-banner,
+body[data-theme="modern"] .change-result-summary,
+body[data-theme="modern"] .stat-hotspot-pill,
+body[data-theme="modern"] .receipt-sim-qr,
+body[data-theme="modern"] .btn-duration-preset,
+body[data-theme="modern"] .btn-quick-batch,
+body[data-theme="modern"] .advanced-accordion-body {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: transform 0.1s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+body[data-theme="modern"] .product-card:active:not(.out-of-stock):not(.unavailable),
+body[data-theme="modern"] .cat-pill:active,
+body[data-theme="modern"] .btn-num:active,
+body[data-theme="modern"] .btn-admin-tab:active,
+body[data-theme="modern"] .btn-generate-report:active,
+body[data-theme="modern"] .btn-quick-cash:active,
+body[data-theme="modern"] .btn-quick-stock:active,
+body[data-theme="modern"] .btn-barcode-scan:active,
+body[data-theme="modern"] .btn-cart-qty:active,
+body[data-theme="modern"] .btn-pager-num:active,
+body[data-theme="modern"] .btn-order-move:active:not(:disabled),
+body[data-theme="modern"] .btn-customer-display:active,
+body[data-theme="modern"] .btn-new-ticket:active,
+body[data-theme="modern"] .ticket-tab:active,
+body[data-theme="modern"] .btn-duration-preset:active,
+body[data-theme="modern"] .btn-quick-batch:active,
+body[data-theme="modern"] .quick-card:active:not(.out-of-stock):not(.unavailable) {
+  transform: scale(0.96);
+}
+
+body[data-theme="modern"] .drop-target-above td {
+  border-top: 2px solid #4f46e5 !important;
+}
+
+body[data-theme="modern"] .drop-target-below td {
+  border-bottom: 2px solid #4f46e5 !important;
+}
+
+body[data-theme="modern"] .is-dragging {
+  background: #eef2ff !important;
+  opacity: 0.45 !important;
+}
+
+body[data-theme="modern"] .product-card.text-only-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-color: #cbd5e1;
+}
+
+body[data-theme="modern"] .product-card.text-only-card:hover {
+  border-color: #6366f1;
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.12);
+}
+
+/* REMARK: THEMES_CSS_PALETTES_AND_OVERRIDES_COMPLETE */

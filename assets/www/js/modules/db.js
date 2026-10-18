@@ -2,16 +2,22 @@
  * Module Description: Local Offline Storage Subsystem (Dexie.js / IndexedDB)
  * Persists staff accounts, product catalog, categories, completed sales orders,
  * line-item void audit logs, thermal printer hub hardware targets, store profile
- * configuration (including buzzer/pager toggle and quantity capacity), and offline
- * sync queues. Implements atomic stock deduction upon sale, soft-void cancellation
- * with monitored inventory restitution, and low-bandwidth cloud delta synchronization.
+ * configuration with granular Karinderya Mode feature flags (individual controls for
+ * auto-cash tender, auto-GCash verification bypass, compact items-only receipts, and
+ * pager suppression), cashier work shifts (drawer cash float reconciliations), customer-facing
+ * dual-screen display styling, offline sync queues, and single-use Wi-Fi hotspot vouchers.
+ * Includes zero-dependency embedded SVG product graphics and automatic database migration sweeps.
  */
 
-// Fallback image SVGs for category and product initialization
+// Fallback vector SVGs for categories and products (100% offline, zero network requests)
 const SVG_CAT_ALL = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'><path d='M3 4h8v8H3V4zm10 0h8v8h-8V4zM3 14h8v8H3v-8zm10 0h8v8h-8v-8z'/></svg>";
 const SVG_CAT_BEV = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'><path d='M2 19h18v2H2v-2zm18-8v-2h-2V3H4v6H2v2c0 2.21 1.79 4 4 4h8c1.86 0 3.41-1.28 3.86-3H18c1.1 0 2-.9 2-2zm-4-6v6H6V5h10zm2 6h-2V5h2v6z'/></svg>";
 const SVG_CAT_MEALS = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'><path d='M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z'/></svg>";
 const SVG_CAT_SNACKS = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z'/></svg>";
+
+const SVG_PROD_COFFEE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230284c7'><path d='M2 21h18v-2H2v2zm18-12h-2V5H4v8c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-1h2c1.1 0 2-.9 2-2v-1c0-1.1-.9-2-2-2zm-4 4c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V7h10v6zm2-1h-2V7h2v5z'/></svg>";
+const SVG_PROD_MEAL = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2316a34a'><path d='M18 3c-2.76 0-5 2.24-5 5v5h2V3h3zm-7 0H9v6H7V3H5v6H3v2c0 2.21 1.79 4 4 4v6h2v-6c2.21 0 4-1.79 4-4V3h-2v6h-2V3z'/></svg>";
+const SVG_PROD_SNACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d97706'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z'/></svg>";
 
 if (typeof window.Dexie === "undefined") {
   throw new Error("[DB Init Error] Dexie.js is not loaded on the window object.");
@@ -42,16 +48,27 @@ localDB.version(4).stores({
   settings: "key"
 });
 
-// Version 5: Monitored inventory support, soft-void order tracking, and stock synchronization queue
 localDB.version(5).stores({
   products: "id, cat, bc, isMonitored, isAvailable",
   orders: "++id, orderNumber, cashierId, status, synced, timestamp",
   stockQueue: "id"
 });
 
-// Version 6: Addons category classification for Quick Menu shelf
 localDB.version(6).stores({
   categories: "id, order, isAddon"
+});
+
+localDB.version(7).stores({
+  products: "id, cat, bc, isMonitored, isAvailable, createdAt"
+});
+
+localDB.version(8).stores({
+  vouchers: "id, code, status, orderNumber, createdAt, consumedAt"
+});
+
+localDB.version(9).stores({
+  shifts: "id, cashierId, cashierName, status, startTime, endTime",
+  orders: "++id, orderNumber, cashierId, shiftId, status, synced, timestamp"
 });
 
 export const DB = {
@@ -59,7 +76,7 @@ export const DB = {
   initPromise: null,
 
   /**
-   * Initializes database and seeds master records if empty
+   * Initializes database, seeds master records if empty, and sanitizes image paths
    */
   async init() {
     if (this.initPromise) {
@@ -111,11 +128,12 @@ export const DB = {
             price: 110.0,
             cat: "beverages",
             bc: "1001",
-            image: "img/iced-americano.png",
+            image: SVG_PROD_COFFEE,
             isMonitored: false,
             stock: 0,
             threshold: null,
-            isAvailable: true
+            isAvailable: true,
+            createdAt: "2026-01-01T08:00:00.000Z"
           },
           {
             id: "P2",
@@ -123,11 +141,12 @@ export const DB = {
             price: 130.0,
             cat: "beverages",
             bc: "1002",
-            image: "img/cafe-latte.png",
+            image: SVG_PROD_COFFEE,
             isMonitored: false,
             stock: 0,
             threshold: null,
-            isAvailable: true
+            isAvailable: true,
+            createdAt: "2026-01-01T08:05:00.000Z"
           },
           {
             id: "P3",
@@ -135,11 +154,12 @@ export const DB = {
             price: 165.0,
             cat: "meals",
             bc: "1003",
-            image: "img/pork-sisig.png",
+            image: SVG_PROD_MEAL,
             isMonitored: true,
             stock: 15,
             threshold: 5,
-            isAvailable: true
+            isAvailable: true,
+            createdAt: "2026-01-01T08:10:00.000Z"
           },
           {
             id: "P4",
@@ -147,13 +167,25 @@ export const DB = {
             price: 75.0,
             cat: "snacks",
             bc: "1004",
-            image: "img/choco-crinkles.png",
+            image: SVG_PROD_SNACK,
             isMonitored: true,
             stock: 24,
             threshold: 6,
-            isAvailable: true
+            isAvailable: true,
+            createdAt: "2026-01-01T08:15:00.000Z"
           }
         ]);
+      } else {
+        // Migration Sweep: Sanitize existing products that reference missing physical image files
+        const existingProducts = await localDB.products.toArray();
+        for (const prod of existingProducts) {
+          if (prod.image && (prod.image.includes(".png") || prod.image.startsWith("img/"))) {
+            let cleanSvg = SVG_PROD_COFFEE;
+            if (prod.cat === "meals") cleanSvg = SVG_PROD_MEAL;
+            else if (prod.cat === "snacks") cleanSvg = SVG_PROD_SNACK;
+            await localDB.products.update(prod.id, { image: cleanSvg });
+          }
+        }
       }
 
       // 4. Seed Printers if empty
@@ -168,6 +200,7 @@ export const DB = {
             address: "192.168.1.100",
             port: 9100,
             paperWidth: "58mm",
+            isBle: false,
             isEnabled: true
           }
         ]);
@@ -187,7 +220,7 @@ export const DB = {
         });
       }
 
-      // 6. Seed Default Store Profile Settings if empty
+      // 6. Seed Default Store Profile & MikroTik Settings if empty
       const storeSetting = await localDB.settings.get("store_settings");
       if (!storeSetting) {
         await localDB.settings.put({
@@ -198,8 +231,53 @@ export const DB = {
           contactNumber: "0917-123-4567",
           tagline: "Fast, Fresh & Local Delivery",
           logoBase64: "",
+          gcashName: "",
+          gcashNumber: "",
+          gcashQrBase64: "",
+          gcashQrPayload: "",
           useNumberPager: false,
-          pagerCount: 24
+          pagerCount: 24,
+          defaultInitialCash: 1000.0,
+          karinderyaMode: false,
+          karinderyaAutoCash: true,
+          karinderyaAutoGCash: true,
+          karinderyaCompactReceipt: true,
+          karinderyaSuppressPager: true,
+          karinderyaVoucherOnly: false,
+          hotspotEnabled: false,
+          hotspotRouterIp: "192.168.88.1",
+          hotspotPort: 80,
+          hotspotProtocol: "http",
+          hotspotUsername: "pos-terminal",
+          hotspotPassword: "",
+          hotspotDomain: "hotspot.lokalex.local",
+          hotspotProfile: "pos-customer",
+          hotspotUptime: "2h",
+          hotspotRateLimit: "2M/5M",
+          hotspotSharedUsers: "1",
+          hotspotAutoPrint: true
+        });
+      }
+
+      // 7. Seed Default Secondary Customer Display Settings if empty
+      const displaySetting = await localDB.settings.get("display_settings");
+      if (!displaySetting) {
+        await localDB.settings.put({
+          key: "display_settings",
+          layoutPreset: "split",
+          themeMode: "dark",
+          bgColor: "#0f172a",
+          surfaceColor: "#1e293b",
+          accentColor: "#0284c7",
+          textColor: "#f8fafc",
+          textMutedColor: "#94a3b8",
+          fontFamily: "sans",
+          fontSizeScale: "normal",
+          showLogo: true,
+          showTagline: true,
+          customWelcome: "Welcome! Your order details will appear here as items are scanned.",
+          customFooterNote: "Customer Display Terminal • Live Order Mirror",
+          componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"]
         });
       }
     })();
@@ -208,7 +286,47 @@ export const DB = {
   },
 
   /**
-   * Store Settings & Profile Configuration
+   * Customer-Facing Display Customization Settings
+   */
+  async getDisplaySettings() {
+    const settings = await localDB.settings.get("display_settings");
+    return settings || {
+      key: "display_settings",
+      layoutPreset: "split",
+      themeMode: "dark",
+      bgColor: "#0f172a",
+      surfaceColor: "#1e293b",
+      accentColor: "#0284c7",
+      textColor: "#f8fafc",
+      textMutedColor: "#94a3b8",
+      fontFamily: "sans",
+      fontSizeScale: "normal",
+      showLogo: true,
+      showTagline: true,
+      customWelcome: "Welcome! Your order details will appear here as items are scanned.",
+      customFooterNote: "Customer Display Terminal • Live Order Mirror",
+      componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"]
+    };
+  },
+
+  async saveDisplaySettings(updates) {
+    const current = await this.getDisplaySettings();
+    const merged = { ...current, ...updates, key: "display_settings" };
+    await localDB.settings.put(merged);
+
+    try {
+      localStorage.setItem("pos_display_settings", JSON.stringify(merged));
+      if ("BroadcastChannel" in window) {
+        const channel = new BroadcastChannel("pos_customer_display");
+        channel.postMessage({ type: "display:updated", data: merged });
+      }
+    } catch (_) {}
+
+    return merged;
+  },
+
+  /**
+   * Store Settings & Profile Configuration (With Granular Karinderya Controls)
    */
   async getStoreSettings() {
     const settings = await localDB.settings.get("store_settings");
@@ -220,8 +338,31 @@ export const DB = {
       contactNumber: "0917-123-4567",
       tagline: "Fast, Fresh & Local Delivery",
       logoBase64: "",
+      gcashName: "",
+      gcashNumber: "",
+      gcashQrBase64: "",
+      gcashQrPayload: "",
       useNumberPager: false,
-      pagerCount: 24
+      pagerCount: 24,
+      defaultInitialCash: 1000.0,
+      karinderyaMode: false,
+      karinderyaAutoCash: true,
+      karinderyaAutoGCash: true,
+      karinderyaCompactReceipt: true,
+      karinderyaSuppressPager: true,
+      karinderyaVoucherOnly: false,
+      hotspotEnabled: false,
+      hotspotRouterIp: "192.168.88.1",
+      hotspotPort: 80,
+      hotspotProtocol: "http",
+      hotspotUsername: "pos-terminal",
+      hotspotPassword: "",
+      hotspotDomain: "hotspot.lokalex.local",
+      hotspotProfile: "pos-customer",
+      hotspotUptime: "2h",
+      hotspotRateLimit: "2M/5M",
+      hotspotSharedUsers: "1",
+      hotspotAutoPrint: true
     };
   },
 
@@ -229,12 +370,121 @@ export const DB = {
     const current = await this.getStoreSettings();
     const merged = { ...current, ...updates, key: "store_settings" };
     await localDB.settings.put(merged);
+
+    try {
+      localStorage.setItem("pos_store_settings", JSON.stringify(merged));
+      if ("BroadcastChannel" in window) {
+        const channel = new BroadcastChannel("pos_customer_display");
+        channel.postMessage({ type: "store:updated", data: merged });
+      }
+    } catch (_) {}
+
     return merged;
   },
 
-  /**
-   * Cloud Sync Configuration & Settings Operations
-   */
+  // ===========================================================================
+  // CASHIER SHIFT MANAGEMENT & DRAWER CASH RECONCILIATION
+  // ===========================================================================
+
+  async getActiveShift(cashierId = null) {
+    if (cashierId) {
+      return await localDB.shifts
+        .where("cashierId")
+        .equals(cashierId)
+        .filter((s) => s.status === "OPEN")
+        .first();
+    }
+    return await localDB.shifts.where("status").equals("OPEN").first();
+  },
+
+  async startShift(cashier, initialCash = 1000.0) {
+    const existing = await this.getActiveShift(cashier.id);
+    if (existing) {
+      return existing;
+    }
+
+    const newShift = {
+      id: `SHIFT-${Date.now().toString().slice(-6)}`,
+      cashierId: cashier.id || "USR-001",
+      cashierName: cashier.name || "Cashier",
+      initialCash: Math.max(0, Number(initialCash) || 0.0),
+      status: "OPEN",
+      startTime: new Date().toISOString(),
+      endTime: null,
+      note: ""
+    };
+
+    await localDB.shifts.add(newShift);
+    return newShift;
+  },
+
+  async closeShift(shiftId, note = "") {
+    const shift = await localDB.shifts.get(shiftId);
+    if (!shift) return null;
+
+    const updated = {
+      ...shift,
+      status: "CLOSED",
+      endTime: new Date().toISOString(),
+      note: note || shift.note || ""
+    };
+
+    await localDB.shifts.put(updated);
+    return updated;
+  },
+
+  async getShifts() {
+    return await localDB.shifts.reverse().sortBy("startTime");
+  },
+
+  async getShiftById(id) {
+    return await localDB.shifts.get(id);
+  },
+
+  // ===========================================================================
+  // MIKROTIK HOTSPOT VOUCHERS SUB-SYSTEM
+  // ===========================================================================
+
+  async getVouchers() {
+    return await localDB.vouchers.reverse().sortBy("createdAt");
+  },
+
+  async getAvailableVouchersCount() {
+    return await localDB.vouchers.where("status").equals("AVAILABLE").count();
+  },
+
+  async saveVouchers(vouchersArray) {
+    if (!Array.isArray(vouchersArray) || vouchersArray.length === 0) return;
+    await localDB.vouchers.bulkPut(vouchersArray);
+  },
+
+  async getNextAvailableVoucher() {
+    return await localDB.vouchers.where("status").equals("AVAILABLE").first();
+  },
+
+  async consumeLocalVoucher(code, orderNumber) {
+    const voucher = await localDB.vouchers.where("code").equals(code).first();
+    if (!voucher) return null;
+
+    const updated = {
+      ...voucher,
+      status: "CONSUMED",
+      orderNumber,
+      consumedAt: new Date().toISOString()
+    };
+
+    await localDB.vouchers.put(updated);
+    return updated;
+  },
+
+  async clearConsumedVouchers() {
+    return await localDB.vouchers.where("status").equals("CONSUMED").delete();
+  },
+
+  // ===========================================================================
+  // CLOUD SYNC CONFIGURATION
+  // ===========================================================================
+
   async getSyncConfig() {
     const config = await localDB.settings.get("cloud_sync");
     return config || {
@@ -254,11 +504,8 @@ export const DB = {
     return merged;
   },
 
-  /**
-   * Sync Queue Management for Orders & Stock
-   */
   async getUnsyncedOrders() {
-    return await localDB.orders.filter(ord => ord.synced === 0 || !ord.synced).toArray();
+    return await localDB.orders.filter((ord) => ord.synced === 0 || !ord.synced).toArray();
   },
 
   async markOrdersAsSynced(orderIds) {
@@ -270,9 +517,6 @@ export const DB = {
     });
   },
 
-  /**
-   * Retrieves pending modified stocks to sync minimal byte payloads
-   */
   async getUnsyncedStock() {
     const queueEntries = await localDB.stockQueue.toArray();
     if (queueEntries.length === 0) return {};
@@ -299,9 +543,6 @@ export const DB = {
     });
   },
 
-  /**
-   * Upsert Remote Products & Categories into Local IndexedDB
-   */
   async syncUpsertCatalog(remoteCategories, remoteProducts) {
     await localDB.transaction("rw", localDB.categories, localDB.products, async () => {
       if (Array.isArray(remoteCategories) && remoteCategories.length > 0) {
@@ -313,15 +554,16 @@ export const DB = {
     });
   },
 
-  /**
-   * Multi-Printer Hub Queries & CRUD
-   */
+  // ===========================================================================
+  // THERMAL PRINTER HUB HARDWARE PROFILES
+  // ===========================================================================
+
   async getPrinters() {
     return await localDB.printers.toArray();
   },
 
   async getEnabledPrinters() {
-    return await localDB.printers.filter(p => Boolean(p.isEnabled)).toArray();
+    return await localDB.printers.filter((p) => Boolean(p.isEnabled)).toArray();
   },
 
   async getPrinterById(id) {
@@ -339,6 +581,7 @@ export const DB = {
       btName: (printer.btName || "").trim(),
       usbPort: (printer.usbPort || "").trim(),
       paperWidth: printer.paperWidth || "58mm",
+      isBle: Boolean(printer.isBle),
       isEnabled: printer.isEnabled !== undefined ? Boolean(printer.isEnabled) : true
     };
     await localDB.printers.add(newPrinter);
@@ -352,6 +595,7 @@ export const DB = {
     if (formatted.port !== undefined) formatted.port = parseInt(formatted.port, 10) || 9100;
     if (formatted.btName !== undefined) formatted.btName = formatted.btName.trim();
     if (formatted.usbPort !== undefined) formatted.usbPort = formatted.usbPort.trim();
+    if (formatted.isBle !== undefined) formatted.isBle = Boolean(formatted.isBle);
     if (formatted.isEnabled !== undefined) formatted.isEnabled = Boolean(formatted.isEnabled);
 
     await localDB.printers.update(id, formatted);
@@ -373,9 +617,10 @@ export const DB = {
     return await localDB.printers.delete(id);
   },
 
-  /**
-   * Category Queries & CRUD
-   */
+  // ===========================================================================
+  // CATEGORIES & PRODUCTS
+  // ===========================================================================
+
   async getCategories() {
     return await localDB.categories.orderBy("order").toArray();
   },
@@ -385,7 +630,7 @@ export const DB = {
   },
 
   async getAddonCategories() {
-    return await localDB.categories.filter(c => Boolean(c.isAddon)).toArray();
+    return await localDB.categories.filter((c) => Boolean(c.isAddon)).toArray();
   },
 
   async addCategory(category) {
@@ -416,14 +661,20 @@ export const DB = {
     return await this.getCategoryById(id);
   },
 
+  async updateCategoryOrders(orderList) {
+    if (!Array.isArray(orderList) || orderList.length === 0) return;
+    await localDB.transaction("rw", localDB.categories, async () => {
+      for (const item of orderList) {
+        await localDB.categories.update(item.id, { order: parseInt(item.order, 10) || 1 });
+      }
+    });
+  },
+
   async deleteCategory(id) {
     if (id === "all") throw new Error("Cannot delete root 'all' category.");
     return await localDB.categories.delete(id);
   },
 
-  /**
-   * Product Queries & CRUD
-   */
   async getProducts(category = "all") {
     if (category === "all") {
       return await localDB.products.toArray();
@@ -434,8 +685,8 @@ export const DB = {
   async getAddonProducts() {
     const addonCategories = await this.getAddonCategories();
     if (addonCategories.length === 0) return [];
-    const addonCatIds = new Set(addonCategories.map(c => c.id));
-    return await localDB.products.filter(p => addonCatIds.has(p.cat)).toArray();
+    const addonCatIds = new Set(addonCategories.map((c) => c.id));
+    return await localDB.products.filter((p) => addonCatIds.has(p.cat)).toArray();
   },
 
   async getProductByBarcode(barcode) {
@@ -449,7 +700,11 @@ export const DB = {
   async addProduct(product) {
     const isMon = Boolean(product.isMonitored);
     const stockVal = isMon ? Math.max(0, parseInt(product.stock, 10) || 0) : 0;
-    const isAvailable = isMon ? (stockVal > 0) : (product.isAvailable !== false);
+    const isAvailable = isMon ? stockVal > 0 : product.isAvailable !== false;
+
+    let defaultSvg = SVG_PROD_COFFEE;
+    if (product.cat === "meals") defaultSvg = SVG_PROD_MEAL;
+    else if (product.cat === "snacks") defaultSvg = SVG_PROD_SNACK;
 
     const newProduct = {
       id: product.id || `P${Date.now().toString().slice(-5)}`,
@@ -457,13 +712,14 @@ export const DB = {
       price: Math.max(0, Number(product.price) || 0.0),
       cat: product.cat || "all",
       bc: (product.bc || "").trim(),
-      image: product.image || "",
+      image: product.image || defaultSvg,
       isMonitored: isMon,
       stock: stockVal,
-      threshold: (product.threshold !== null && product.threshold !== undefined && product.threshold !== "")
+      threshold: product.threshold !== null && product.threshold !== undefined && product.threshold !== ""
         ? Math.max(0, parseInt(product.threshold, 10) || 0)
         : null,
-      isAvailable
+      isAvailable,
+      createdAt: product.createdAt || new Date().toISOString()
     };
 
     await localDB.products.add(newProduct);
@@ -498,9 +754,10 @@ export const DB = {
     return await localDB.products.delete(id);
   },
 
-  /**
-   * User & Authentication Queries & CRUD
-   */
+  // ===========================================================================
+  // USERS & AUTHENTICATION
+  // ===========================================================================
+
   async getUsers() {
     return await localDB.users.toArray();
   },
@@ -512,7 +769,7 @@ export const DB = {
   async authenticateUser(pinOrBadge) {
     const trimmed = String(pinOrBadge).trim();
     const user = await localDB.users
-      .filter(u => u.pin === trimmed || u.badgeCode === trimmed)
+      .filter((u) => u.pin === trimmed || u.badgeCode === trimmed)
       .first();
 
     return user || null;
@@ -532,7 +789,7 @@ export const DB = {
       name: (user.name || "").trim(),
       pin: String(user.pin).trim(),
       badgeCode: (user.badgeCode || "").trim(),
-      role: (user.role === "admin" || user.role === "manager") ? user.role : "user"
+      role: user.role === "admin" || user.role === "manager" ? user.role : "user"
     };
     await localDB.users.add(newUser);
     return newUser;
@@ -544,7 +801,7 @@ export const DB = {
     if (formatted.pin !== undefined) formatted.pin = String(formatted.pin).trim();
     if (formatted.badgeCode !== undefined) formatted.badgeCode = (formatted.badgeCode || "").trim();
     if (formatted.role !== undefined) {
-      formatted.role = (formatted.role === "admin" || formatted.role === "manager") ? formatted.role : "user";
+      formatted.role = formatted.role === "admin" || formatted.role === "manager" ? formatted.role : "user";
     }
     await localDB.users.update(id, formatted);
     return await this.getUserById(id);
@@ -554,19 +811,29 @@ export const DB = {
     return await localDB.users.delete(id);
   },
 
-  /**
-   * Order Persistence with Atomic Stock Deduction
-   */
+  // ===========================================================================
+  // ORDER PERSISTENCE WITH ACTIVE SHIFT LINKING
+  // ===========================================================================
+
   async saveOrder(orderData) {
-    const sanitizedItems = (orderData.items || []).map(item => ({
+    const sanitizedItems = (orderData.items || []).map((item) => ({
       id: item.id,
       name: item.name || "Item",
       price: Math.max(0, Number(item.price) || 0.0),
       qty: Math.max(1, parseInt(item.qty, 10) || 1)
     }));
 
+    let activeShiftId = orderData.shiftId || null;
+    if (!activeShiftId) {
+      const activeShift = await this.getActiveShift(orderData.cashierId);
+      if (activeShift) {
+        activeShiftId = activeShift.id;
+      }
+    }
+
     const record = {
       orderNumber: orderData.orderNumber || `ORD-${Date.now().toString().slice(-6)}`,
+      shiftId: activeShiftId,
       cashierId: orderData.cashierId || "STAFF-01",
       cashierName: orderData.cashierName || "Cashier",
       items: sanitizedItems,
@@ -580,6 +847,7 @@ export const DB = {
       gcashAmountPaid: orderData.gcashAmountPaid ? Math.max(0, Number(orderData.gcashAmountPaid)) : null,
       gcashPaymentDate: orderData.gcashPaymentDate || null,
       pagerNumber: orderData.pagerNumber || null,
+      voucher: orderData.voucher || null,
       status: "COMPLETED",
       timestamp: new Date().toISOString(),
       synced: 0
@@ -607,9 +875,6 @@ export const DB = {
     return { ...record, id: insertedId };
   },
 
-  /**
-   * Post-Checkout Manager Void Workflow
-   */
   async voidOrder(orderIdOrNumber, manager, reason = "Manager Void") {
     let order;
     if (typeof orderIdOrNumber === "number") {
@@ -627,16 +892,14 @@ export const DB = {
     }
 
     await localDB.transaction("rw", [localDB.orders, localDB.products, localDB.stockQueue, localDB.voidLogs], async () => {
-      // 1. Soft-void the order
       await localDB.orders.update(order.id, {
         status: "VOIDED",
         voidedAt: new Date().toISOString(),
-        voidedBy: manager ? (manager.name || manager.id) : "Manager",
+        voidedBy: manager ? manager.name || manager.id : "Manager",
         voidReason: reason,
         synced: 0
       });
 
-      // 2. Restore monitored item quantities
       for (const item of order.items || []) {
         const product = await localDB.products.get(item.id);
         if (product && product.isMonitored) {
@@ -650,7 +913,6 @@ export const DB = {
         }
       }
 
-      // 3. Record audit log
       await localDB.voidLogs.add({
         orderNumber: order.orderNumber,
         total: order.total,
@@ -672,11 +934,40 @@ export const DB = {
     return await localDB.orders.get(id);
   },
 
-  /**
-   * Financial Reporting Aggregations
-   */
-  async getSalesSummary() {
-    const orders = await localDB.orders.toArray();
+  async getSalesSummary(shiftFilter = null) {
+    let allOrders = await localDB.orders.toArray();
+    let initialCash = 0.0;
+    let selectedShift = null;
+
+    if (shiftFilter && shiftFilter !== "all") {
+      if (shiftFilter === "active") {
+        selectedShift = await this.getActiveShift();
+      } else {
+        selectedShift = await localDB.shifts.get(shiftFilter);
+      }
+
+      if (selectedShift) {
+        initialCash = Number(selectedShift.initialCash) || 0.0;
+        allOrders = allOrders.filter((ord) => {
+          if (ord.shiftId && ord.shiftId === selectedShift.id) {
+            return true;
+          }
+          if (ord.cashierId === selectedShift.cashierId) {
+            const ordTime = ord.timestamp;
+            if (ordTime >= selectedShift.startTime) {
+              return !selectedShift.endTime || ordTime <= selectedShift.endTime;
+            }
+          }
+          return false;
+        });
+      }
+    } else {
+      const activeShift = await this.getActiveShift();
+      if (activeShift) {
+        initialCash = Number(activeShift.initialCash) || 0.0;
+      }
+    }
+
     let grossSales = 0.0;
     let totalVat = 0.0;
     let cashSales = 0.0;
@@ -685,24 +976,29 @@ export const DB = {
     let voidedCount = 0;
     let voidedSales = 0.0;
 
-    for (const order of orders) {
+    for (const order of allOrders) {
       if (order.status === "VOIDED") {
         voidedCount++;
-        voidedSales += (Number(order.total) || 0);
+        voidedSales += Number(order.total) || 0;
         continue;
       }
 
       completedCount++;
-      grossSales += (Number(order.total) || 0);
-      totalVat += (Number(order.vatAmount) || 0);
+      grossSales += Number(order.total) || 0;
+      totalVat += Number(order.vatAmount) || 0;
       if (order.paymentType === "CASH") {
-        cashSales += (Number(order.total) || 0);
+        cashSales += Number(order.total) || 0;
       } else {
-        gcashSales += (Number(order.total) || 0);
+        gcashSales += Number(order.total) || 0;
       }
     }
 
+    const grossCashDrawer = initialCash + cashSales;
+
     return {
+      shift: selectedShift,
+      initialCash: Number(initialCash.toFixed(2)),
+      grossCashDrawer: Number(grossCashDrawer.toFixed(2)),
       orderCount: completedCount,
       voidedCount,
       voidedSales: Number(voidedSales.toFixed(2)),
@@ -713,9 +1009,6 @@ export const DB = {
     };
   },
 
-  /**
-   * Cart Line Item Void Audit Logging
-   */
   async logVoid(item, manager) {
     return await localDB.voidLogs.add({
       itemId: item.id,
@@ -726,7 +1019,70 @@ export const DB = {
       managerName: manager ? manager.name : "Manager",
       timestamp: new Date().toISOString()
     });
+  },
+
+  /**
+   * Clears transactions based on selected scope ('today', 'week', 'month', 'all')
+   * @param {'today' | 'week' | 'month' | 'all'} scope 
+   * @returns {Promise<{ deletedCount: number, scope: string }>}
+   */
+  async clearOrdersByScope(scope = "today") {
+    const allOrders = await localDB.orders.toArray();
+    let toDeleteIds = [];
+    const now = new Date();
+
+    if (scope === "all") {
+      toDeleteIds = allOrders.map((o) => o.id);
+    } else if (scope === "today") {
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      toDeleteIds = allOrders.filter((o) => new Date(o.timestamp) >= startOfDay).map((o) => o.id);
+    } else if (scope === "week") {
+      const startOfWeek = new Date(now);
+      const day = startOfWeek.getDay(); // 0 is Sunday
+      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+      toDeleteIds = allOrders.filter((o) => new Date(o.timestamp) >= startOfWeek).map((o) => o.id);
+    } else if (scope === "month") {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      toDeleteIds = allOrders.filter((o) => new Date(o.timestamp) >= startOfMonth).map((o) => o.id);
+    }
+
+    if (toDeleteIds.length > 0) {
+      await localDB.orders.bulkDelete(toDeleteIds);
+    }
+
+    return { deletedCount: toDeleteIds.length, scope };
+  },
+
+  /**
+   * Returns count of orders matching a scope without deleting
+   * @param {'today' | 'week' | 'month' | 'all'} scope 
+   * @returns {Promise<number>}
+   */
+  async getOrderCountByScope(scope = "today") {
+    const allOrders = await localDB.orders.toArray();
+    const now = new Date();
+
+    if (scope === "all") return allOrders.length;
+    if (scope === "today") {
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      return allOrders.filter((o) => new Date(o.timestamp) >= startOfDay).length;
+    }
+    if (scope === "week") {
+      const startOfWeek = new Date(now);
+      const day = startOfWeek.getDay();
+      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+      return allOrders.filter((o) => new Date(o.timestamp) >= startOfWeek).length;
+    }
+    if (scope === "month") {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      return allOrders.filter((o) => new Date(o.timestamp) >= startOfMonth).length;
+    }
+    return 0;
   }
 };
 
-// REMARK: DB_JS_PAGER_FEATURE_COMPLETE
+// REMARK: DB_JS_GRANULAR_KARINDERYA_SETTINGS_COMPLETE

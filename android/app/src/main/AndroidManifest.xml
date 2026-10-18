@@ -1,10 +1,14 @@
 <!--
   Module Description: Android Application Manifest
   Declares core device hardware permissions, network access rules,
-  and native window properties. Locks the MainActivity window manager 
-  lifecycle to sensorLandscape orientation.
+  and native window properties. Configures dual-tier Bluetooth permissions
+  (Classic RFCOMM Bluetooth & Location access for Android 10/11 itel VPad 2,
+  and BLUETOOTH_CONNECT/SCAN with unconstrained location compatibility for Android 12+),
+  WebUSB host features, and locks MainActivity window manager lifecycle to sensorLandscape orientation.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
     <!-- Camera for QR & Barcode Scanner -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -15,11 +19,21 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
-    <!-- Bluetooth for Wireless ESC/POS Printers -->
-    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <!-- Bluetooth Hardware Feature Declaration -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+
+    <!-- Bluetooth for Wireless ESC/POS Printers (Legacy Android 10/11 Support) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+
+    <!-- Location Permissions for Bluetooth LE Discovery (Android 10, 11, 12+) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Bluetooth for Android 12+ (API 31+) -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:targetApi="31" />
 
     <!-- USB Host for Wired Thermal Printers & Barcode Scanners -->
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
@@ -70,4 +84,4 @@
         </intent>
     </queries>
 </manifest>
-<!-- REMARK: ANDROID_MANIFEST_LANDSCAPE_ORIENTATION_CONFIG_COMPLETE -->
+<!-- REMARK: ANDROID_MANIFEST_BLE_FINE_LOCATION_HARMONIZED_COMPLETE -->

@@ -40,25 +40,56 @@ export const LoginUI = {
     // Attach virtual numpad click listeners immediately for instant touch input
     if (this.elements.numButtons && this.elements.numButtons.length > 0) {
       this.elements.numButtons.forEach((btn) => {
-        btn.onclick = (e) => {
-          if (e) e.preventDefault();
+        const handleNumPress = (e) => {
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
           this.appendDigit(btn.dataset.val);
+        };
+        btn.onclick = handleNumPress;
+        // Pointerdown for zero-latency touch response on tablets
+        btn.onpointerdown = (e) => {
+          if (e.pointerType === "touch" || e.pointerType === "pen") {
+            e.preventDefault();
+            this.appendDigit(btn.dataset.val);
+          }
         };
       });
     }
 
     // Attach action button listeners
     if (this.elements.btnClear) {
-      this.elements.btnClear.onclick = (e) => {
-        if (e) e.preventDefault();
+      const handleClear = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         this.clearPin();
+      };
+      this.elements.btnClear.onclick = handleClear;
+      this.elements.btnClear.onpointerdown = (e) => {
+        if (e.pointerType === "touch" || e.pointerType === "pen") {
+          e.preventDefault();
+          this.clearPin();
+        }
       };
     }
 
     if (this.elements.btnSubmit) {
-      this.elements.btnSubmit.onclick = (e) => {
-        if (e) e.preventDefault();
+      const handleSubmit = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         this.submitLogin();
+      };
+      this.elements.btnSubmit.onclick = handleSubmit;
+      this.elements.btnSubmit.onpointerdown = (e) => {
+        if (e.pointerType === "touch" || e.pointerType === "pen") {
+          e.preventDefault();
+          this.submitLogin();
+        }
       };
     }
 

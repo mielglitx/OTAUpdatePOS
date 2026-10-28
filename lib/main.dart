@@ -218,6 +218,9 @@ class _POSContainerState extends State<POSContainer> with WidgetsBindingObserver
               action: PermissionResponseAction.GRANT,
             );
           },
+          onConsoleMessage: (controller, consoleMessage) {
+            debugPrint('[WebView Console ${consoleMessage.messageLevel}]: ${consoleMessage.message}');
+          },
           onWebViewCreated: (controller) {
             // Bridge 1: Dual Display Hardware Trigger
             controller.addJavaScriptHandler(

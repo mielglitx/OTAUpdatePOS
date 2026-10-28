@@ -10,6 +10,7 @@
 
 import { DB } from "./db.js";
 import { Printer } from "./printer.js";
+import { Bus } from "./bus.js";
 
 export const PrinterUI = {
   elements: {},

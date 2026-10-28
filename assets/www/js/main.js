@@ -149,14 +149,60 @@ async function checkStartupOtaUpdate() {
 }
 
 async function initApp() {
+  // 1. Initialize IndexedDB schema, seed master records, and sync settings
   try {
-    // 1. Initialize IndexedDB schema, seed master records, and sync settings
     await DB.init();
+  } catch (dbErr) {
+    console.error("[Bootstrap Error] DB init failed:", dbErr);
+  }
 
-    // 2. Initialize Network Monitor & Cloud Sync Adapter
+  // 2. Initialize Lock Screen & Touch Numpad IMMEDIATELY (Priority #1 so user can ALWAYS log in)
+  try {
+    LoginUI.init({
+      onLoginSuccess: async (user) => {
+        try {
+          CatalogUI.focusBarcode();
+        } catch (_) {}
+
+        // Silently engage cashier shift using Admin-configured initial money
+        try {
+          const activeShift = await DB.getActiveShift(user ? user.id : null);
+          if (!activeShift) {
+            const store = await DB.getStoreSettings();
+            const startingFloat = Number(store.defaultInitialCash) || 1000.0;
+            await DB.startShift(user || { id: "USR-001", name: "Cashier" }, startingFloat);
+          }
+        } catch (shiftErr) {
+          console.warn("[Shift Auto-Start Notice]:", shiftErr);
+        }
+      },
+      onLock: (priorUser) => {
+        // 1. Immediately purge in-memory cart state
+        try {
+          Cart.clear();
+        } catch (_) {}
+
+        // 2. Detached non-blocking background dispatch: sales summary prints asynchronously
+        if (priorUser) {
+          printLogoutReport(priorUser).catch((err) => {
+            console.warn("[Background Logout Print Notice]:", err);
+          });
+        }
+      }
+    });
+  } catch (loginErr) {
+    console.error("[Bootstrap Error] LoginUI init failed:", loginErr);
+  }
+
+  // 3. Initialize Network Monitor & Cloud Sync Adapter
+  try {
     Sync.init();
+  } catch (syncErr) {
+    console.warn("[Bootstrap Warning] Sync init:", syncErr);
+  }
 
-    // 3. Boot POS Facade ticket bindings and manager void modal verification
+  // 4. Boot POS Facade ticket bindings and manager void modal verification
+  try {
     POS.boot({
       tbody: document.getElementById("cart-tbody"),
       txtNet: document.getElementById("txt-subtotal"),
@@ -167,19 +213,35 @@ async function initApp() {
       lblVoid: document.getElementById("void-item-label"),
       errVoid: document.getElementById("void-error-msg")
     });
+  } catch (posErr) {
+    console.warn("[Bootstrap Warning] POS boot:", posErr);
+  }
 
-    // 4. Initialize Catalog & Category Browser
+  // 5. Initialize Catalog & Category Browser
+  try {
     CatalogUI.init();
     await CatalogUI.loadCategories();
     await CatalogUI.loadProducts("all");
+  } catch (catErr) {
+    console.warn("[Bootstrap Warning] CatalogUI init:", catErr);
+  }
 
-    // 5. Initialize Payment & Multi-Printer Checkout Engine
+  // 6. Initialize Payment & Multi-Printer Checkout Engine
+  try {
     CheckoutUI.init();
+  } catch (checkoutErr) {
+    console.warn("[Bootstrap Warning] CheckoutUI init:", checkoutErr);
+  }
 
-    // 6. Initialize Multi-Printer Hub Console
+  // 7. Initialize Multi-Printer Hub Console
+  try {
     PrinterUI.init();
+  } catch (printerErr) {
+    console.warn("[Bootstrap Warning] PrinterUI init:", printerErr);
+  }
 
-    // 7. Initialize Administration Back-Office Portal
+  // 8. Initialize Administration Back-Office Portal
+  try {
     AdminUI.init({
       onCatalogModified: async () => {
         await CatalogUI.loadCategories();
@@ -190,12 +252,15 @@ async function initApp() {
         await CatalogUI.loadProducts(CatalogUI.getActiveCategory());
       }
     });
+  } catch (adminErr) {
+    console.warn("[Bootstrap Warning] AdminUI init:", adminErr);
+  }
 
-    // 8. Initialize Customer-Facing Dual Screen Customizer Sub-Module
+  // 9. Initialize Customer-Facing Dual Screen Customizer Sub-Module
+  try {
     if (AdminDisplay && typeof AdminDisplay.init === "function") {
       AdminDisplay.init();
 
-      // Bind Customer Display Admin Navigation Tab
       const tabBtnDisplay = document.getElementById("tab-btn-display");
       if (tabBtnDisplay) {
         tabBtnDisplay.addEventListener("click", async () => {
@@ -212,7 +277,6 @@ async function initApp() {
         });
       }
 
-      // Bind Topbar Customer Display Hardware Presentation Trigger
       const btnCustomerDisplay = document.getElementById("btn-customer-display");
       if (btnCustomerDisplay) {
         btnCustomerDisplay.onclick = async () => {
@@ -220,20 +284,21 @@ async function initApp() {
         };
       }
 
-      // Feature Rework: Auto-enable and auto-mount secondary customer presentation display on boot
-      // if Android hardware indicates dual-monitor / Sunmi sub-display connected
       setTimeout(async () => {
         try {
           await AdminDisplay.pushLiveToSecondary({ silent: true });
         } catch (_) {}
       }, 1200);
     }
+  } catch (dispErr) {
+    console.warn("[Bootstrap Warning] AdminDisplay init:", dispErr);
+  }
 
-    // 8.1 Initialize Dining & Floor Plan Table Layout Sub-Module
+  // 10. Initialize Dining & Floor Plan Table Layout Sub-Module
+  try {
     if (AdminTables && typeof AdminTables.init === "function") {
       await AdminTables.init();
 
-      // Bind Table Layout Admin Navigation Tab
       const tabBtnTables = document.getElementById("tab-btn-tables");
       if (tabBtnTables) {
         tabBtnTables.addEventListener("click", async () => {
@@ -250,64 +315,32 @@ async function initApp() {
         });
       }
     }
+  } catch (tableErr) {
+    console.warn("[Bootstrap Warning] AdminTables init:", tableErr);
+  }
 
-    // 9. Initialize Lock Screen & Cashier Shift Engagement
-    LoginUI.init({
-      onLoginSuccess: async (user) => {
-        CatalogUI.focusBarcode();
-
-        // Silently engage cashier shift using Admin-configured initial money
-        try {
-          const activeShift = await DB.getActiveShift(user ? user.id : null);
-          if (!activeShift) {
-            const store = await DB.getStoreSettings();
-            const startingFloat = Number(store.defaultInitialCash) || 1000.0;
-            await DB.startShift(user || { id: "USR-001", name: "Cashier" }, startingFloat);
-          }
-        } catch (shiftErr) {
-          console.warn("[Shift Auto-Start Notice]:", shiftErr);
-        }
-      },
-      onLock: (priorUser) => {
-        // 1. Immediately purge in-memory cart state
-        Cart.clear();
-
-        // 2. Detached non-blocking background dispatch: sales summary prints asynchronously
-        // Terminal is already locked on-screen, so printer hardware/network latency never freezes or slows the UI
-        if (priorUser) {
-          printLogoutReport(priorUser).catch((err) => {
-            console.warn("[Background Logout Print Notice]:", err);
-          });
-        }
-      }
-    });
-
-    // 10. Bind global register action controls
+  // 11. Bind global register action controls
+  try {
     const btnClearCart = document.getElementById("btn-clear-cart");
     const btnLockTerminal = document.getElementById("btn-lock-terminal");
     if (btnClearCart) {
       btnClearCart.onclick = () => Cart.clear();
     }
-    // 11. Over-The-Air (OTA) Startup Update Verification
-    // Checks for newly published updates on application startup
-    setTimeout(async () => {
-      try {
-        await checkStartupOtaUpdate();
-      } catch (otaErr) {
-        console.warn("[Startup OTA Check Notice]:", otaErr);
-      }
-    }, 1500);
-
     if (btnLockTerminal) {
       btnLockTerminal.onclick = () => {
-        // Immediate zero-latency terminal lock: locks in 0ms without waiting for thermal printer
         LoginUI.lock();
       };
     }
+  } catch (_) {}
 
-  } catch (err) {
-    console.error("[POS Bootstrap Error] System failed to initialize:", err);
-  }
+  // 12. Over-The-Air (OTA) Startup Update Verification
+  setTimeout(async () => {
+    try {
+      await checkStartupOtaUpdate();
+    } catch (otaErr) {
+      console.warn("[Startup OTA Check Notice]:", otaErr);
+    }
+  }, 1500);
 }
 
 // Start application runtime

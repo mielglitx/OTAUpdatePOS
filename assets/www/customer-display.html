@@ -1,10 +1,11 @@
 <!--
   Module Description: Second-Screen Customer-Facing Live Display
   Provides an adaptive, real-time mirrored order display for Android dual-monitor POS setups.
-  Synchronizes instantly with the cashier terminal via the BroadcastChannel API ('pos_customer_display')
-  with localStorage fallback. Features dynamic CSS custom property theming, selectable layout presets
-  (split, banner-top, checkout-focus, minimalist), modular component show/hide and re-ordering,
-  custom typography engines, store branding, live cart tables, VAT breakdowns, and payment QR callouts.
+  Synchronizes instantly with the cashier terminal via BroadcastChannel ('pos_customer_display')
+  and direct IndexedDB storage. Features dynamic CSS custom property theming, selectable layout presets
+  (split, banner-top, checkout-focus, minimalist), modular component priority re-ordering,
+  built-in promotional photo presentation slideshow with placeholders, store branding, live cart tables,
+  VAT breakdowns, and payment tender callouts.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -21,6 +22,7 @@
       --cd-muted: #94a3b8;
       --cd-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       --cd-scale: 1;
+      --cd-photo-fit: cover;
     }
 
     * {
@@ -149,56 +151,54 @@
 
     .cd-table th {
       text-align: left;
-      padding: 10px 8px;
-      font-size: 0.80rem;
-      color: var(--cd-muted);
+      padding: 12px 14px;
+      font-size: 0.82rem;
       text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--cd-muted);
       border-bottom: 2px solid rgba(255, 255, 255, 0.08);
     }
 
     .cd-table td {
-      padding: 12px 8px;
-      font-size: 1.05rem;
+      padding: 14px 14px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      vertical-align: middle;
+      font-size: 1.05rem;
+      color: var(--cd-text);
     }
 
     .cd-item-name {
       font-weight: 700;
-      color: var(--cd-text);
+      letter-spacing: 0.2px;
     }
 
     .cd-item-qty {
       font-weight: 800;
-      color: var(--cd-accent);
       text-align: center;
-      width: 70px;
+      color: var(--cd-accent);
     }
 
     .cd-item-price {
       text-align: right;
       color: var(--cd-muted);
-      width: 100px;
     }
 
     .cd-item-total {
       text-align: right;
       font-weight: 800;
       color: var(--cd-text);
-      width: 120px;
     }
 
-    /* Idle / Welcome Splash */
+    /* Empty Cart Splash Screen */
     .cd-empty-splash {
-      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
+      height: 100%;
+      gap: 14px;
       color: var(--cd-muted);
       text-align: center;
-      padding: 30px;
+      padding: 20px;
     }
 
     .cd-empty-icon {
@@ -214,7 +214,7 @@
 
     .cd-empty-splash p {
       font-size: 0.90rem;
-      max-width: 320px;
+      max-width: 340px;
       line-height: 1.4;
     }
 
@@ -226,8 +226,8 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 24px;
-      gap: 16px;
+      padding: 20px;
+      gap: 12px;
       overflow-y: auto;
     }
 
@@ -258,21 +258,21 @@
       letter-spacing: 2px;
     }
 
-    /* Bill Breakdown Card */
+    /* Bill Subtotal / VAT Card */
     .cd-bill-card {
-      background: var(--cd-bg);
+      background: rgba(0, 0, 0, 0.2);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 10px;
-      padding: 16px;
+      padding: 14px 18px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
 
     .cd-bill-row {
       display: flex;
       justify-content: space-between;
-      font-size: 1rem;
+      font-size: 0.95rem;
       color: var(--cd-muted);
     }
 
@@ -281,44 +281,43 @@
       color: var(--cd-text);
     }
 
-    /* Total Amount Due Callout Box */
+    /* Grand Total Amount Box */
     .cd-total-box {
       background: var(--cd-accent);
-      border-radius: 10px;
-      padding: 20px;
+      border-radius: 12px;
+      padding: 20px 24px;
+      text-align: center;
+      color: #ffffff;
+      box-shadow: 0 8px 24px rgba(2, 132, 199, 0.35);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
       gap: 4px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
     }
 
     .cd-total-label {
       font-size: 0.95rem;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: rgba(255, 255, 255, 0.85);
+      letter-spacing: 1.5px;
+      opacity: 0.9;
     }
 
     .cd-total-amount {
       font-size: 3.2rem;
       font-weight: 900;
-      color: #ffffff;
       letter-spacing: 1px;
-      line-height: 1.1;
+      line-height: 1.05;
     }
 
-    /* Tendered & Change Result */
+    /* Payment Tendered & Change Card */
     .cd-payment-card {
       background: rgba(22, 163, 74, 0.15);
-      border: 2px solid #16a34a;
+      border: 2px solid #22c55e;
       border-radius: 10px;
-      padding: 14px 18px;
+      padding: 16px 20px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 10px;
     }
 
     .cd-payment-row {
@@ -326,27 +325,35 @@
       justify-content: space-between;
       align-items: center;
       font-size: 1.05rem;
-      color: #86efac;
+    }
+
+    .cd-payment-row span {
+      color: var(--cd-muted);
+    }
+
+    .cd-payment-row b {
+      color: #ffffff;
+      font-size: 1.35rem;
     }
 
     .cd-change-large {
-      font-size: 1.7rem;
+      font-size: 1.85rem !important;
+      color: #4ade80 !important;
       font-weight: 900;
-      color: #ffffff;
     }
 
     /* -----------------------------------------------------------
-       FOOTER COMPONENT
+       FOOTER COMPONENT (Status & Custom Note)
     ----------------------------------------------------------- */
     .cd-footer {
-      height: 38px;
-      background: var(--cd-bg);
+      height: 44px;
+      background: var(--cd-surface);
       border-top: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 28px;
-      font-size: 0.76rem;
+      font-size: 0.82rem;
       color: var(--cd-muted);
       flex-shrink: 0;
     }
@@ -354,12 +361,10 @@
     /* -----------------------------------------------------------
        PRE-CONFIGURED LAYOUT PRESETS
     ----------------------------------------------------------- */
-    /* 1. Split Layout (Default 50/50 Dual-Pane) */
     .layout-split .cd-main {
       grid-template-columns: 1.25fr 1fr;
     }
 
-    /* 2. Banner-Top Layout */
     .layout-banner-top .cd-header {
       height: 90px;
       padding: 0 36px;
@@ -368,7 +373,6 @@
       grid-template-columns: 1.4fr 1fr;
     }
 
-    /* 3. Checkout-Focus Layout (Giant Total Callout) */
     .layout-checkout-focus .cd-main {
       grid-template-columns: 1fr 1.35fr;
     }
@@ -379,7 +383,6 @@
       font-size: 4rem;
     }
 
-    /* 4. Minimalist Layout */
     .layout-minimalist .cd-header {
       justify-content: center;
       border-bottom: none;
@@ -405,6 +408,7 @@
       position: relative;
       width: 100%;
       height: 220px;
+      min-height: 180px;
       overflow: hidden;
       border-radius: 12px;
       background: #000000;
@@ -412,17 +416,48 @@
       align-items: center;
       justify-content: center;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-      margin-bottom: 12px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
     }
 
-    .cd-empty-showcase {
+    .cd-slideshow-placeholder {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
-      min-height: 280px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      text-align: center;
+      padding: 16px;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.5) 100%);
+      border: 1px dashed rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      box-sizing: border-box;
+      z-index: 1;
+    }
+
+    .cd-slideshow-placeholder-icon {
+      font-size: 2.4rem;
+      margin-bottom: 6px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    }
+
+    .cd-slideshow-placeholder-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--cd-text);
+      letter-spacing: 0.3px;
+    }
+
+    .cd-slideshow-placeholder-desc {
+      font-size: 0.72rem;
+      color: var(--cd-muted);
+      max-width: 85%;
+      margin-top: 4px;
+      line-height: 1.3;
     }
 
     .cd-slideshow-image {
@@ -449,8 +484,8 @@
       bottom: 0;
       left: 0;
       right: 0;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
-      padding: 12px 16px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+      padding: 10px 14px;
       color: #ffffff;
       z-index: 3;
       display: flex;
@@ -460,7 +495,7 @@
     }
 
     .cd-slideshow-caption {
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       font-weight: 600;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
       max-width: 75%;
@@ -470,11 +505,11 @@
     }
 
     .cd-slideshow-counter {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 700;
-      background: rgba(0, 0, 0, 0.55);
+      background: rgba(0, 0, 0, 0.6);
       border: 1px solid rgba(255, 255, 255, 0.25);
-      padding: 2px 8px;
+      padding: 2px 7px;
       border-radius: 10px;
       letter-spacing: 0.5px;
     }
@@ -544,7 +579,7 @@
   <!-- Main Multi-Pane Presentation Workspace -->
   <main class="cd-main">
     
-    <!-- Left Pane: Ordered Items Table -->
+    <!-- Left Pane: Ordered Items Table & Empty Hero Showcase -->
     <section class="cd-items-pane" id="comp-cart">
       <div class="cd-items-header">
         <h2>Items in Order</h2>
@@ -565,17 +600,24 @@
         </table>
 
         <div id="cd-empty-splash" class="cd-empty-splash">
-          <!-- Standalone Slideshow Hero on Empty Cart if Photos exist -->
-          <div id="cd-hero-slideshow" class="cd-slideshow-container hidden" style="height: 320px; width: 95%;">
+          <!-- Standalone Slideshow Hero on Empty Cart -->
+          <div id="cd-hero-slideshow" class="cd-slideshow-container" style="height: 320px; width: 95%; max-width: 640px;">
             <div id="cd-hero-slides-wrapper" style="width: 100%; height: 100%; position: relative;"></div>
-            <div class="cd-slideshow-overlay">
+            <div id="cd-hero-slideshow-placeholder" class="cd-slideshow-placeholder">
+              <div class="cd-slideshow-placeholder-icon" style="font-size: 3.2rem;">🖼️</div>
+              <div class="cd-slideshow-placeholder-title" style="font-size: 1.15rem;">Photo Presentation & Showcase</div>
+              <p class="cd-slideshow-placeholder-desc" style="font-size: 0.82rem; max-width: 80%;">
+                Upload promotional photos, daily menu specials, or announcements in Admin ⚙️ ➔ Display to feature them on this screen.
+              </p>
+            </div>
+            <div class="cd-slideshow-overlay" id="cd-hero-overlay">
               <span class="cd-slideshow-caption" id="cd-hero-slideshow-caption">Featured Items & Specials</span>
               <span class="cd-slideshow-counter" id="cd-hero-slideshow-counter">1 / 1</span>
             </div>
             <div class="cd-slideshow-dots" id="cd-hero-slideshow-dots"></div>
           </div>
 
-          <div id="cd-empty-default-content">
+          <div id="cd-empty-default-content" class="hidden">
             <div class="cd-empty-icon">🛒</div>
             <h3 id="cd-empty-title">Welcome!</h3>
             <p id="cd-empty-msg">Your order details will appear here as items are scanned.</p>
@@ -584,13 +626,20 @@
       </div>
     </section>
 
-    <!-- Right Pane: Summary, Totals, Pager, and Payment Verification -->
+    <!-- Right Pane: Summary, Totals, Pager, and Photo Presentation -->
     <section class="cd-summary-pane" id="comp-summary">
       
-      <!-- Promotional Photo Slideshow alongside Cart -->
-      <div id="comp-slideshow" class="cd-slideshow-container hidden">
+      <!-- Built-In Picture Presentation Section (Always Visible Part of Template) -->
+      <div id="comp-slideshow" class="cd-slideshow-container">
         <div id="cd-summary-slides-wrapper" style="width: 100%; height: 100%; position: relative;"></div>
-        <div class="cd-slideshow-overlay">
+        <div id="cd-summary-slideshow-placeholder" class="cd-slideshow-placeholder">
+          <div class="cd-slideshow-placeholder-icon">📸</div>
+          <div class="cd-slideshow-placeholder-title">Photo Presentation</div>
+          <p class="cd-slideshow-placeholder-desc">
+            Lineup up to 20 promotional photos, menu items & specials in Admin ➔ Display
+          </p>
+        </div>
+        <div class="cd-slideshow-overlay" id="cd-summary-overlay">
           <span class="cd-slideshow-caption" id="cd-summary-slideshow-caption">Store Specials</span>
           <span class="cd-slideshow-counter" id="cd-summary-slideshow-counter">1 / 1</span>
         </div>
@@ -648,15 +697,16 @@
       const el = document.getElementById("cd-clock");
       if (el) {
         const now = new Date();
-        el.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        el.textContent = now.toLocaleTimeString();
       }
     }
     setInterval(updateClock, 1000);
     updateClock();
 
-    // 2. DOM Elements Cache
+    // 2. DOM Elements Binding Cache
     const elements = {
       body: document.body,
+      clock: document.getElementById("cd-clock"),
       storeName: document.getElementById("cd-store-name"),
       tagline: document.getElementById("cd-tagline"),
       logo: document.getElementById("cd-logo"),
@@ -669,11 +719,15 @@
       emptyDefaultContent: document.getElementById("cd-empty-default-content"),
       heroSlideshow: document.getElementById("cd-hero-slideshow"),
       heroSlidesWrapper: document.getElementById("cd-hero-slides-wrapper"),
+      heroPlaceholder: document.getElementById("cd-hero-slideshow-placeholder"),
+      heroOverlay: document.getElementById("cd-hero-overlay"),
       heroCaption: document.getElementById("cd-hero-slideshow-caption"),
       heroCounter: document.getElementById("cd-hero-slideshow-counter"),
       heroDots: document.getElementById("cd-hero-slideshow-dots"),
       summarySlideshow: document.getElementById("comp-slideshow"),
       summarySlidesWrapper: document.getElementById("cd-summary-slides-wrapper"),
+      summaryPlaceholder: document.getElementById("cd-summary-slideshow-placeholder"),
+      summaryOverlay: document.getElementById("cd-summary-overlay"),
       summaryCaption: document.getElementById("cd-summary-slideshow-caption"),
       summaryCounter: document.getElementById("cd-summary-slideshow-counter"),
       summaryDots: document.getElementById("cd-summary-slideshow-dots"),
@@ -686,8 +740,7 @@
       paymentCard: document.getElementById("cd-payment-card"),
       tendered: document.getElementById("cd-tendered"),
       change: document.getElementById("cd-change"),
-      footerNote: document.getElementById("cd-footer-note"),
-      status: document.getElementById("cd-status")
+      footerNote: document.getElementById("cd-footer-note")
     };
 
     // 2.1 Photo Presentation Slideshow Engine (Up to 20 Photos, Lineup or Random)
@@ -695,10 +748,10 @@
       photos: [],
       currentIndex: 0,
       timer: null,
-      enabled: true,
-      displayMode: "lineup", // "lineup" or "random"
+      displayMode: "lineup", // "lineup" | "random"
       interval: 5000,        // milliseconds
       fitMode: "cover",
+      enabled: true,
 
       init(photos = [], config = {}) {
         this.photos = Array.isArray(photos) ? photos.slice(0, 20) : [];
@@ -713,10 +766,32 @@
       },
 
       renderSlides() {
-        if (!this.enabled || this.photos.length === 0) {
+        if (!this.enabled) {
           if (elements.heroSlideshow) elements.heroSlideshow.classList.add("hidden");
           if (elements.summarySlideshow) elements.summarySlideshow.classList.add("hidden");
           if (elements.emptyDefaultContent) elements.emptyDefaultContent.classList.remove("hidden");
+          return;
+        }
+
+        const hasPhotos = this.photos.length > 0;
+
+        // Ensure containers are visible
+        if (elements.heroSlideshow) elements.heroSlideshow.classList.remove("hidden");
+        if (elements.summarySlideshow) elements.summarySlideshow.classList.remove("hidden");
+
+        // Toggle placeholders vs slides & overlays
+        if (elements.heroPlaceholder) elements.heroPlaceholder.classList.toggle("hidden", hasPhotos);
+        if (elements.summaryPlaceholder) elements.summaryPlaceholder.classList.toggle("hidden", hasPhotos);
+
+        if (elements.heroOverlay) elements.heroOverlay.classList.toggle("hidden", !hasPhotos);
+        if (elements.summaryOverlay) elements.summaryOverlay.classList.toggle("hidden", !hasPhotos);
+
+        if (elements.heroDots) elements.heroDots.classList.toggle("hidden", !hasPhotos || this.photos.length <= 1);
+        if (elements.summaryDots) elements.summaryDots.classList.toggle("hidden", !hasPhotos || this.photos.length <= 1);
+
+        if (!hasPhotos) {
+          if (elements.heroSlidesWrapper) elements.heroSlidesWrapper.innerHTML = "";
+          if (elements.summarySlidesWrapper) elements.summarySlidesWrapper.innerHTML = "";
           return;
         }
 
@@ -797,7 +872,7 @@
       },
 
       updateLayout(hasItems) {
-        if (!this.enabled || this.photos.length === 0) {
+        if (!this.enabled) {
           if (elements.heroSlideshow) elements.heroSlideshow.classList.add("hidden");
           if (elements.summarySlideshow) elements.summarySlideshow.classList.add("hidden");
           if (elements.emptyDefaultContent) elements.emptyDefaultContent.classList.remove("hidden");
@@ -805,13 +880,14 @@
         }
 
         if (hasItems) {
-          // When cart has items: hide hero slideshow, show promotional slideshow in summary pane
+          // When cart has items: left pane shows items table, right summary pane shows presentation
           if (elements.heroSlideshow) elements.heroSlideshow.classList.add("hidden");
           if (elements.summarySlideshow) elements.summarySlideshow.classList.remove("hidden");
+          if (elements.emptyDefaultContent) elements.emptyDefaultContent.classList.add("hidden");
         } else {
-          // When cart is empty: show hero showcase slideshow in items pane, hide summary slideshow
+          // When cart is empty: left pane shows hero presentation section!
           if (elements.heroSlideshow) elements.heroSlideshow.classList.remove("hidden");
-          if (elements.summarySlideshow) elements.summarySlideshow.classList.add("hidden");
+          if (elements.summarySlideshow) elements.summarySlideshow.classList.remove("hidden");
           if (elements.emptyDefaultContent) elements.emptyDefaultContent.classList.add("hidden");
         }
       }
@@ -838,12 +914,10 @@
       root.style.setProperty("--cd-font", fontStack);
 
       // Typography Scale
-      let scaleVal = "1";
-      if (cfg.fontSizeScale === "compact") scaleVal = "0.9";
-      if (cfg.fontSizeScale === "large") scaleVal = "1.15";
-      root.style.setProperty("--cd-scale", scaleVal);
+      const scaleMap = { compact: 0.88, normal: 1, large: 1.15, extra: 1.3 };
+      root.style.setProperty("--cd-scale", scaleMap[cfg.fontSizeScale] || 1);
 
-      // Layout Preset Switcher
+      // Layout Presets
       elements.body.className = "";
       elements.body.classList.add(`layout-${cfg.layoutPreset || "split"}`);
 
@@ -873,12 +947,12 @@
         const compMap = {
           header: document.getElementById("comp-header"),
           cart: document.getElementById("comp-cart"),
+          slideshow: document.getElementById("comp-slideshow"),
           bill: document.getElementById("comp-bill"),
           total: document.getElementById("comp-total"),
           pager: document.getElementById("cd-pager-banner"),
           payment: document.getElementById("cd-payment-card"),
-          footer: document.getElementById("comp-footer"),
-          slideshow: document.getElementById("comp-slideshow")
+          footer: document.getElementById("comp-footer")
         };
 
         cfg.componentsOrder.forEach((compKey, idx) => {
@@ -994,24 +1068,59 @@
       };
     }
 
-    // 7. Initial Seed from localStorage
-    try {
-      const cachedStore = localStorage.getItem("pos_store_settings");
-      if (cachedStore) {
-        const s = JSON.parse(cachedStore);
-        if (s.storeName) elements.storeName.textContent = s.storeName;
-        if (s.tagline) elements.tagline.textContent = s.tagline;
-        if (s.logoBase64) {
-          elements.logo.src = s.logoBase64;
-          elements.logo.classList.remove("hidden");
+    // 7. Initial Seed from IndexedDB (with localStorage fast boot fallback)
+    async function loadInitialSettings() {
+      // 1. Fast fallback from localStorage first
+      try {
+        const cachedStore = localStorage.getItem("pos_store_settings");
+        if (cachedStore) {
+          const s = JSON.parse(cachedStore);
+          if (s.storeName) elements.storeName.textContent = s.storeName;
+          if (s.tagline) elements.tagline.textContent = s.tagline;
+          if (s.logoBase64) {
+            elements.logo.src = s.logoBase64;
+            elements.logo.classList.remove("hidden");
+          }
         }
-      }
+        const cachedDisplay = localStorage.getItem("pos_display_settings");
+        if (cachedDisplay) {
+          applyDisplaySettings(JSON.parse(cachedDisplay));
+        }
+      } catch (_) {}
 
-      const cachedDisplay = localStorage.getItem("pos_display_settings");
-      if (cachedDisplay) {
-        applyDisplaySettings(JSON.parse(cachedDisplay));
+      // 2. Direct IndexedDB query (retrieves full high-res photos even if localStorage hit quota)
+      try {
+        const req = indexedDB.open("LokalexPOSDB");
+        req.onsuccess = (e) => {
+          const db = e.target.result;
+          if (db.objectStoreNames.contains("settings")) {
+            const tx = db.transaction("settings", "readonly");
+            const store = tx.objectStore("settings");
+            const getDisplay = store.get("display_settings");
+            getDisplay.onsuccess = () => {
+              if (getDisplay.result) {
+                applyDisplaySettings(getDisplay.result);
+              }
+            };
+            const getStore = store.get("store_settings");
+            getStore.onsuccess = () => {
+              const s = getStore.result;
+              if (s) {
+                if (s.storeName) elements.storeName.textContent = s.storeName;
+                if (s.tagline) elements.tagline.textContent = s.tagline;
+                if (s.logoBase64) {
+                  elements.logo.src = s.logoBase64;
+                  elements.logo.classList.remove("hidden");
+                }
+              }
+            };
+          }
+        };
+      } catch (err) {
+        console.warn("[Customer Display] IndexedDB direct access error:", err);
       }
-    } catch (_) {}
+    }
+    loadInitialSettings();
   </script>
 </body>
 </html>

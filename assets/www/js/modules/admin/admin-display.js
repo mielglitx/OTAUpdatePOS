@@ -4,8 +4,9 @@
  * Features reactive 16:9 interactive live simulation, pre-configured layout geometry
  * presets (split, banner-top, checkout-focus, minimalist), two-way color palette
  * pickers, one-touch brand themes, typography and scaling controls, branding toggles,
- * sample cart generator, and modular component priority re-ordering with instant
- * BroadcastChannel synchronization to physical secondary Android displays.
+ * sample cart generator, photo presentation slideshow (up to 20 images) with resilient
+ * compression and instant IndexedDB auto-saving, and modular component priority
+ * re-ordering with instant BroadcastChannel synchronization to secondary Android displays.
  */
 
 import { DB } from "../db.js";
@@ -60,6 +61,7 @@ export const AdminDisplay = {
   componentLabels: {
     header: "🏪 Store Header & Brand Identity",
     cart: "🛒 Live Cart Items Table",
+    slideshow: "🖼️ Photo Presentation Slideshow",
     bill: "🧾 Subtotal & 12% VAT Breakdown",
     total: "💰 Total Amount Due Callout",
     pager: "📢 Calling Buzzer / Pager Banner",
@@ -114,7 +116,9 @@ export const AdminDisplay = {
       selectPhotoMode: document.getElementById("select-cd-photo-mode"),
       selectPhotoInterval: document.getElementById("select-cd-photo-interval"),
       selectPhotoFit: document.getElementById("select-cd-photo-fit"),
+      btnTriggerPhotoUpload: document.getElementById("btn-trigger-photo-upload"),
       inputPhotoUpload: document.getElementById("input-cd-photo-upload"),
+      txtPhotoUploadStatus: document.getElementById("cd-photo-upload-status"),
       btnCdClearAllPhotos: document.getElementById("btn-cd-clear-all-photos"),
       cdPhotosRoster: document.getElementById("cd-photos-roster"),
       cdPhotoCountBadge: document.getElementById("cd-photo-count-badge"),
@@ -130,10 +134,11 @@ export const AdminDisplay = {
     // 1. Layout Preset Selection
     if (this.elements.layoutPresetButtons) {
       this.elements.layoutPresetButtons.forEach((btn) => {
-        btn.onclick = () => {
+        btn.onclick = async () => {
           this.elements.layoutPresetButtons.forEach((b) => b.classList.remove("active"));
           btn.classList.add("active");
           this.currentSettings.layoutPreset = btn.dataset.preset;
+          await DB.saveDisplaySettings(this.currentSettings);
           this.broadcastLivePreview();
         };
       });
@@ -142,8 +147,8 @@ export const AdminDisplay = {
     // 2. Quick Theme Palette Buttons
     if (this.elements.paletteButtons) {
       this.elements.paletteButtons.forEach((btn) => {
-        btn.onclick = () => {
-          this.applyPalettePreset(btn.dataset.theme);
+        btn.onclick = async () => {
+          await this.applyPalettePreset(btn.dataset.theme);
         };
       });
     }
@@ -157,6 +162,9 @@ export const AdminDisplay = {
         this.currentSettings[settingKey] = colorPicker.value;
         this.broadcastLivePreview();
       };
+      colorPicker.onchange = async () => {
+        await DB.saveDisplaySettings(this.currentSettings);
+      };
 
       textInput.oninput = () => {
         const val = textInput.value.trim();
@@ -165,6 +173,9 @@ export const AdminDisplay = {
           this.currentSettings[settingKey] = val;
           this.broadcastLivePreview();
         }
+      };
+      textInput.onchange = async () => {
+        await DB.saveDisplaySettings(this.currentSettings);
       };
     };
 
@@ -176,30 +187,34 @@ export const AdminDisplay = {
 
     // 4. Typography Family & Scale Listeners
     if (this.elements.selectFont) {
-      this.elements.selectFont.onchange = () => {
+      this.elements.selectFont.onchange = async () => {
         this.currentSettings.fontFamily = this.elements.selectFont.value;
+        await DB.saveDisplaySettings(this.currentSettings);
         this.broadcastLivePreview();
       };
     }
 
     if (this.elements.selectScale) {
-      this.elements.selectScale.onchange = () => {
+      this.elements.selectScale.onchange = async () => {
         this.currentSettings.fontSizeScale = this.elements.selectScale.value;
+        await DB.saveDisplaySettings(this.currentSettings);
         this.broadcastLivePreview();
       };
     }
 
     // 5. Branding Toggles & Custom Text Listeners
     if (this.elements.cbShowLogo) {
-      this.elements.cbShowLogo.onchange = () => {
+      this.elements.cbShowLogo.onchange = async () => {
         this.currentSettings.showLogo = this.elements.cbShowLogo.checked;
+        await DB.saveDisplaySettings(this.currentSettings);
         this.broadcastLivePreview();
       };
     }
 
     if (this.elements.cbShowTagline) {
-      this.elements.cbShowTagline.onchange = () => {
+      this.elements.cbShowTagline.onchange = async () => {
         this.currentSettings.showTagline = this.elements.cbShowTagline.checked;
+        await DB.saveDisplaySettings(this.currentSettings);
         this.broadcastLivePreview();
       };
     }
@@ -209,6 +224,9 @@ export const AdminDisplay = {
         this.currentSettings.customWelcome = this.elements.inputWelcomeMsg.value;
         this.broadcastLivePreview();
       };
+      this.elements.inputWelcomeMsg.onchange = async () => {
+        await DB.saveDisplaySettings(this.currentSettings);
+      };
     }
 
     if (this.elements.inputFooterNote) {
@@ -216,50 +234,88 @@ export const AdminDisplay = {
         this.currentSettings.customFooterNote = this.elements.inputFooterNote.value;
         this.broadcastLivePreview();
       };
+      this.elements.inputFooterNote.onchange = async () => {
+        await DB.saveDisplaySettings(this.currentSettings);
+      };
     }
 
     // 6. Photo Presentation Slideshow Controls (Up to 20 Photos)
     if (this.elements.cbPhotoEnabled) {
-      this.elements.cbPhotoEnabled.onchange = () => {
+      this.elements.cbPhotoEnabled.onchange = async () => {
         this.currentSettings.photoPresentationEnabled = this.elements.cbPhotoEnabled.checked;
+        await DB.saveDisplaySettings(this.currentSettings);
         this.broadcastLivePreview();
       };
     }
 
     if (this.elements.selectPhotoMode) {
-      this.elements.selectPhotoMode.onchange = () => {
+      this.elements.selectPhotoMode.onchange = async () => {
         this.currentSettings.photoDisplayMode = this.elements.selectPhotoMode.value;
+        await DB.saveDisplaySettings(this.currentSettings);
         this.broadcastLivePreview();
       };
     }
 
     if (this.elements.selectPhotoInterval) {
-      this.elements.selectPhotoInterval.onchange = () => {
+      this.elements.selectPhotoInterval.onchange = async () => {
         this.currentSettings.photoInterval = Number(this.elements.selectPhotoInterval.value) || 5;
+        await DB.saveDisplaySettings(this.currentSettings);
         this.broadcastLivePreview();
       };
     }
 
     if (this.elements.selectPhotoFit) {
-      this.elements.selectPhotoFit.onchange = () => {
+      this.elements.selectPhotoFit.onchange = async () => {
         this.currentSettings.photoFitMode = this.elements.selectPhotoFit.value;
+        await DB.saveDisplaySettings(this.currentSettings);
         this.broadcastLivePreview();
+      };
+    }
+
+    // Reliable File Picker Trigger Button
+    if (this.elements.btnTriggerPhotoUpload && this.elements.inputPhotoUpload) {
+      this.elements.btnTriggerPhotoUpload.onclick = (e) => {
+        e.preventDefault();
+        this.elements.inputPhotoUpload.click();
       };
     }
 
     if (this.elements.inputPhotoUpload) {
       this.elements.inputPhotoUpload.onchange = async (e) => {
-        await this.handlePhotoUpload(e.target.files);
+        const files = e.target.files;
+        if (files && files.length > 0) {
+          await this.handlePhotoUpload(files);
+        }
         e.target.value = "";
       };
     }
 
+    // Drag-and-drop file upload target on the photos roster
+    if (this.elements.cdPhotosRoster) {
+      const roster = this.elements.cdPhotosRoster;
+      roster.ondragover = (e) => {
+        e.preventDefault();
+        roster.style.borderColor = "var(--accent)";
+      };
+      roster.ondragleave = () => {
+        roster.style.borderColor = "";
+      };
+      roster.ondrop = async (e) => {
+        e.preventDefault();
+        roster.style.borderColor = "";
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          await this.handlePhotoUpload(e.dataTransfer.files);
+        }
+      };
+    }
+
     if (this.elements.btnCdClearAllPhotos) {
-      this.elements.btnCdClearAllPhotos.onclick = () => {
+      this.elements.btnCdClearAllPhotos.onclick = async () => {
         if (!this.currentSettings.photos || this.currentSettings.photos.length === 0) return;
         if (confirm("Clear all promotional slideshow photos?")) {
           this.currentSettings.photos = [];
           this.renderPhotoRoster();
+          await DB.saveDisplaySettings(this.currentSettings);
           this.broadcastLivePreview();
         }
       };
@@ -390,7 +446,7 @@ export const AdminDisplay = {
    * Applies one of the pre-configured color palette presets
    * @param {string} themeKey 
    */
-  applyPalettePreset(themeKey) {
+  async applyPalettePreset(themeKey) {
     const palette = this.palettePresets[themeKey];
     if (!palette) return;
 
@@ -411,6 +467,7 @@ export const AdminDisplay = {
     if (this.elements.inputMutedColor) this.elements.inputMutedColor.value = palette.textMutedColor;
     if (this.elements.txtMutedColor) this.elements.txtMutedColor.value = palette.textMutedColor.toUpperCase();
 
+    await DB.saveDisplaySettings(this.currentSettings);
     this.broadcastLivePreview();
   },
 
@@ -420,7 +477,7 @@ export const AdminDisplay = {
   renderComponentsList() {
     if (!this.elements.componentsList) return;
 
-    const order = this.currentSettings.componentsOrder || ["header", "cart", "bill", "total", "pager", "payment", "footer"];
+    const order = this.currentSettings.componentsOrder || ["header", "cart", "slideshow", "bill", "total", "pager", "payment", "footer"];
 
     this.elements.componentsList.innerHTML = order.map((compKey, index) => {
       const label = this.componentLabels[compKey] || compKey;
@@ -461,8 +518,8 @@ export const AdminDisplay = {
    * @param {number} index 
    * @param {number} delta 
    */
-  moveComponent(index, delta) {
-    const list = [...(this.currentSettings.componentsOrder || ["header", "cart", "bill", "total", "pager", "payment", "footer"])];
+  async moveComponent(index, delta) {
+    const list = [...(this.currentSettings.componentsOrder || ["header", "cart", "slideshow", "bill", "total", "pager", "payment", "footer"])];
     const targetIdx = index + delta;
 
     if (targetIdx < 0 || targetIdx >= list.length) return;
@@ -472,15 +529,19 @@ export const AdminDisplay = {
 
     this.currentSettings.componentsOrder = list;
     this.renderComponentsList();
+    await DB.saveDisplaySettings(this.currentSettings);
     this.broadcastLivePreview();
   },
 
   /**
-   * Broadcasts updated display configuration to live simulator iframe and secondary monitor
+   * Broadcasts updated customer display settings to active channel
    */
   broadcastLivePreview() {
     try {
       localStorage.setItem("pos_display_settings", JSON.stringify(this.currentSettings));
+    } catch (_) {}
+
+    try {
       if ("BroadcastChannel" in window) {
         const channel = new BroadcastChannel("pos_customer_display");
         channel.postMessage({ type: "display:updated", data: this.currentSettings });
@@ -555,9 +616,9 @@ export const AdminDisplay = {
 
     if (photos.length === 0) {
       this.elements.cdPhotosRoster.innerHTML = `
-        <div style="text-align: center; padding: 20px 10px; background: var(--bg-alt); border: var(--border); border-radius: var(--radius); color: var(--text-muted); font-size: 0.8rem;">
+        <div style="text-align: center; padding: 24px 10px; color: var(--text-muted); font-size: 0.82rem;">
           📷 No promotional photos uploaded yet.<br/>
-          Click <b>➕ Add Photos</b> above to upload up to 20 images for the customer screen presentation.
+          Click <b>➕ Add Photos</b> above or drag & drop image files here.
         </div>
       `;
       return;
@@ -578,53 +639,56 @@ export const AdminDisplay = {
               type="text" 
               class="cd-photo-caption-input" 
               data-index="${index}" 
-              value="${caption.replace(/"/g, '&quot;')}" 
-              placeholder="Photo caption / promo title"
-              style="font-size: 0.78rem; padding: 4px 8px; flex: 1; min-width: 80px;"
+              value="${caption}" 
+              placeholder="Caption (e.g. Daily Special, 20% Off)" 
+              style="flex: 1; padding: 4px 8px; font-size: 0.78rem; background: var(--bg-card); border: var(--border); border-radius: 4px; color: var(--text);"
             />
           </div>
-          <div style="display: flex; gap: 4px; flex-shrink: 0;">
-            <button type="button" class="btn-tool btn-sm btn-photo-move-up" data-index="${index}" ${isFirst ? "disabled" : ""} title="Move Up in Lineup">▲</button>
-            <button type="button" class="btn-tool btn-sm btn-photo-move-down" data-index="${index}" ${isLast ? "disabled" : ""} title="Move Down in Lineup">▼</button>
-            <button type="button" class="btn-tool btn-danger-outline btn-sm btn-photo-delete" data-index="${index}" title="Delete Photo">✖</button>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button type="button" class="btn-tool btn-sm btn-photo-up" data-index="${index}" ${isFirst ? "disabled" : ""} title="Move Up">▲</button>
+            <button type="button" class="btn-tool btn-sm btn-photo-down" data-index="${index}" ${isLast ? "disabled" : ""} title="Move Down">▼</button>
+            <button type="button" class="btn-tool btn-danger-outline btn-sm btn-photo-del" data-index="${index}" title="Delete Photo">🗑️</button>
           </div>
         </div>
       `;
     }).join("");
 
-    // Bind Move Up
-    this.elements.cdPhotosRoster.querySelectorAll(".btn-photo-move-up").forEach((btn) => {
-      btn.onclick = () => {
-        const idx = parseInt(btn.dataset.index, 10);
-        this.movePhoto(idx, -1);
+    // Bind Caption Edits
+    this.elements.cdPhotosRoster.querySelectorAll(".cd-photo-caption-input").forEach((inp) => {
+      inp.onchange = async () => {
+        const idx = parseInt(inp.dataset.index, 10);
+        await this.updatePhotoCaption(idx, inp.value.trim());
       };
     });
 
-    // Bind Move Down
-    this.elements.cdPhotosRoster.querySelectorAll(".btn-photo-move-down").forEach((btn) => {
-      btn.onclick = () => {
+    // Bind Move Up / Down
+    this.elements.cdPhotosRoster.querySelectorAll(".btn-photo-up").forEach((btn) => {
+      btn.onclick = async () => {
         const idx = parseInt(btn.dataset.index, 10);
-        this.movePhoto(idx, 1);
+        await this.movePhoto(idx, -1);
+      };
+    });
+
+    this.elements.cdPhotosRoster.querySelectorAll(".btn-photo-down").forEach((btn) => {
+      btn.onclick = async () => {
+        const idx = parseInt(btn.dataset.index, 10);
+        await this.movePhoto(idx, 1);
       };
     });
 
     // Bind Delete
-    this.elements.cdPhotosRoster.querySelectorAll(".btn-photo-delete").forEach((btn) => {
-      btn.onclick = () => {
+    this.elements.cdPhotosRoster.querySelectorAll(".btn-photo-del").forEach((btn) => {
+      btn.onclick = async () => {
         const idx = parseInt(btn.dataset.index, 10);
-        this.deletePhoto(idx);
-      };
-    });
-
-    // Bind Caption edit
-    this.elements.cdPhotosRoster.querySelectorAll(".cd-photo-caption-input").forEach((input) => {
-      input.onchange = () => {
-        const idx = parseInt(input.dataset.index, 10);
-        this.updatePhotoCaption(idx, input.value.trim());
+        await this.deletePhoto(idx);
       };
     });
   },
 
+  /**
+   * Processes uploaded image files, applies high-quality compression, and auto-saves to DB
+   * @param {FileList|Array<File>} fileList 
+   */
   async handlePhotoUpload(fileList) {
     if (!fileList || fileList.length === 0) return;
 
@@ -636,21 +700,34 @@ export const AdminDisplay = {
       return;
     }
 
-    const filesToProcess = Array.from(fileList).slice(0, remainingSlots);
-    if (fileList.length > remainingSlots) {
-      alert(`Only ${remainingSlots} photo(s) added to stay within the 20 photos maximum limit.`);
+    if (this.elements.txtPhotoUploadStatus) {
+      this.elements.txtPhotoUploadStatus.textContent = "⏳ Processing photo(s)...";
+      this.elements.txtPhotoUploadStatus.style.color = "var(--accent)";
     }
 
+    const filesToProcess = Array.from(fileList).slice(0, remainingSlots);
+    if (fileList.length > remainingSlots) {
+      alert(`Only ${remainingSlots} photo(s) will be added to stay within the 20 photos maximum limit.`);
+    }
+
+    let addedCount = 0;
     for (const file of filesToProcess) {
+      if (!file.type || !file.type.startsWith("image/")) {
+        console.warn("Skipping non-image file:", file.name);
+        continue;
+      }
       try {
         const dataUrl = await this.compressAndEncodeImage(file);
-        currentPhotos.push({
-          id: `PHOTO-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          name: file.name.replace(/\.[^/.]+$/, ""),
-          caption: file.name.replace(/\.[^/.]+$/, ""),
-          dataUrl,
-          order: currentPhotos.length + 1
-        });
+        if (dataUrl) {
+          currentPhotos.push({
+            id: `PHOTO-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            name: file.name.replace(/\.[^/.]+$/, ""),
+            caption: file.name.replace(/\.[^/.]+$/, ""),
+            dataUrl,
+            order: currentPhotos.length + 1
+          });
+          addedCount++;
+        }
       } catch (err) {
         console.warn("[Photo Upload Warning]:", err);
       }
@@ -658,45 +735,92 @@ export const AdminDisplay = {
 
     this.currentSettings.photos = currentPhotos.slice(0, 20);
     this.renderPhotoRoster();
+
+    // Auto-save immediately to Dexie IndexedDB
+    await DB.saveDisplaySettings(this.currentSettings);
     this.broadcastLivePreview();
+
+    if (this.elements.txtPhotoUploadStatus) {
+      this.elements.txtPhotoUploadStatus.textContent = addedCount > 0 ? `✅ ${addedCount} photo(s) uploaded!` : "❌ Upload failed";
+      this.elements.txtPhotoUploadStatus.style.color = addedCount > 0 ? "#22c55e" : "#ef4444";
+      setTimeout(() => {
+        if (this.elements.txtPhotoUploadStatus) this.elements.txtPhotoUploadStatus.textContent = "";
+      }, 4000);
+    }
   },
 
+  /**
+   * Resilient client-side canvas compression for ultra-fast customer display rendering
+   * @param {File} file 
+   * @returns {Promise<string|null>} DataURL
+   */
   compressAndEncodeImage(file) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
+      // Safety timeout fallback: if canvas hangs, fallback to standard FileReader
+      const safetyTimeout = setTimeout(() => {
+        console.warn("[Photo Upload] Canvas compression timed out, reading directly...");
+        const fallback = new FileReader();
+        fallback.onload = (fe) => resolve(fe.target.result);
+        fallback.onerror = () => resolve(null);
+        fallback.readAsDataURL(file);
+      }, 4000);
+
       const reader = new FileReader();
       reader.onload = (e) => {
+        const rawDataUrl = e.target.result;
         const img = new Image();
+
         img.onload = () => {
-          const maxDim = 1280;
-          let width = img.width;
-          let height = img.height;
+          clearTimeout(safetyTimeout);
+          try {
+            const maxDim = 960; // 960px resolution is crisp on 1080p and keeps base64 under 90KB
+            let width = img.width || 800;
+            let height = img.height || 600;
 
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
             }
-          }
 
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.82));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressed = canvas.toDataURL("image/jpeg", 0.80);
+            resolve(compressed);
+          } catch (canvasErr) {
+            console.warn("[Photo Upload] Canvas encode error, using raw image:", canvasErr);
+            resolve(rawDataUrl);
+          }
         };
-        img.onerror = reject;
-        img.src = e.target.result;
+
+        img.onerror = () => {
+          clearTimeout(safetyTimeout);
+          console.warn("[Photo Upload] Image element load error, using raw image");
+          resolve(rawDataUrl);
+        };
+
+        img.src = rawDataUrl;
       };
-      reader.onerror = reject;
+
+      reader.onerror = () => {
+        clearTimeout(safetyTimeout);
+        console.error("[Photo Upload] FileReader failed for file:", file.name);
+        resolve(null);
+      };
+
       reader.readAsDataURL(file);
     });
   },
 
-  movePhoto(index, delta) {
+  async movePhoto(index, delta) {
     const list = [...(this.currentSettings.photos || [])];
     const targetIdx = index + delta;
     if (targetIdx < 0 || targetIdx >= list.length) return;
@@ -706,20 +830,23 @@ export const AdminDisplay = {
 
     this.currentSettings.photos = list.map((p, idx) => ({ ...p, order: idx + 1 }));
     this.renderPhotoRoster();
+    await DB.saveDisplaySettings(this.currentSettings);
     this.broadcastLivePreview();
   },
 
-  deletePhoto(index) {
+  async deletePhoto(index) {
     const list = [...(this.currentSettings.photos || [])];
     list.splice(index, 1);
     this.currentSettings.photos = list.map((p, idx) => ({ ...p, order: idx + 1 }));
     this.renderPhotoRoster();
+    await DB.saveDisplaySettings(this.currentSettings);
     this.broadcastLivePreview();
   },
 
-  updatePhotoCaption(index, caption) {
+  async updatePhotoCaption(index, caption) {
     if (this.currentSettings.photos && this.currentSettings.photos[index]) {
       this.currentSettings.photos[index].caption = caption;
+      await DB.saveDisplaySettings(this.currentSettings);
       this.broadcastLivePreview();
     }
   },
@@ -750,7 +877,7 @@ export const AdminDisplay = {
       showTagline: true,
       customWelcome: "Welcome! Your order details will appear here as items are scanned.",
       customFooterNote: "Customer Display Terminal • Live Order Mirror",
-      componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"],
+      componentsOrder: ["header", "cart", "slideshow", "bill", "total", "pager", "payment", "footer"],
       photoPresentationEnabled: true,
       photoDisplayMode: "lineup",
       photoInterval: 5,

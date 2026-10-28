@@ -788,12 +788,13 @@
               </div>
 
               <!-- Upload & Controls Row -->
-              <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px;">
-                <label class="btn-tool" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" for="input-cd-photo-upload">
+              <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn-pay btn-cash btn-sm" id="btn-trigger-photo-upload" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
                   <span>➕ Add Photos (Max 20)</span>
-                  <input type="file" id="input-cd-photo-upload" accept="image/*" multiple style="display: none;" />
-                </label>
+                </button>
+                <input type="file" id="input-cd-photo-upload" accept="image/png,image/jpeg,image/webp,image/jpg" multiple style="position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none;" />
                 <button type="button" class="btn-danger-outline btn-sm" id="btn-cd-clear-all-photos">🗑️ Clear All Photos</button>
+                <span id="cd-photo-upload-status" style="font-size: 0.76rem; font-weight: 600; color: var(--text-muted); margin-left: auto;"></span>
               </div>
 
               <!-- Lineup Gallery Grid -->

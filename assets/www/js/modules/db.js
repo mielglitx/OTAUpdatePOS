@@ -343,7 +343,7 @@ export const DB = {
       showTagline: true,
       customWelcome: "Welcome! Your order details will appear here as items are scanned.",
       customFooterNote: "Customer Display Terminal • Live Order Mirror",
-      componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"],
+      componentsOrder: ["header", "cart", "slideshow", "bill", "total", "pager", "payment", "footer"],
       photoPresentationEnabled: true,
       photoDisplayMode: "lineup",
       photoInterval: 5,
@@ -351,7 +351,16 @@ export const DB = {
       photoLayoutPlacement: "adaptive",
       photos: []
     };
-    return { ...defaults, ...(settings || {}) };
+    const res = { ...defaults, ...(settings || {}) };
+    if (res.componentsOrder && !res.componentsOrder.includes("slideshow")) {
+      const idx = res.componentsOrder.indexOf("cart");
+      if (idx !== -1) {
+        res.componentsOrder.splice(idx + 1, 0, "slideshow");
+      } else {
+        res.componentsOrder.push("slideshow");
+      }
+    }
+    return res;
   },
 
   async saveDisplaySettings(updates) {
@@ -365,6 +374,22 @@ export const DB = {
 
     try {
       localStorage.setItem("pos_display_settings", JSON.stringify(merged));
+    } catch (_) {
+      try {
+        const lightweight = {
+          ...merged,
+          photos: (merged.photos || []).map((p) => ({
+            id: p.id,
+            name: p.name,
+            caption: p.caption,
+            order: p.order
+          }))
+        };
+        localStorage.setItem("pos_display_settings", JSON.stringify(lightweight));
+      } catch (__) {}
+    }
+
+    try {
       if ("BroadcastChannel" in window) {
         const channel = new BroadcastChannel("pos_customer_display");
         channel.postMessage({ type: "display:updated", data: merged });

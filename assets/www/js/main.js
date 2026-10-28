@@ -189,14 +189,7 @@ async function checkStartupOtaUpdate() {
 }
 
 async function initApp() {
-  // 1. Initialize IndexedDB schema, seed master records, and sync settings
-  try {
-    await DB.init();
-  } catch (dbErr) {
-    console.error("[Bootstrap Error] DB init failed:", dbErr);
-  }
-
-  // 2. Initialize Lock Screen & Touch Numpad IMMEDIATELY (Priority #1 so user can ALWAYS log in)
+  // 1. Initialize Lock Screen & Touch Numpad IMMEDIATELY (Priority #1 so user can ALWAYS type and log in)
   try {
     LoginUI.init({
       onLoginSuccess: async (user) => {
@@ -232,6 +225,13 @@ async function initApp() {
     });
   } catch (loginErr) {
     console.error("[Bootstrap Error] LoginUI init failed:", loginErr);
+  }
+
+  // 2. Initialize IndexedDB schema, seed master records, and sync settings
+  try {
+    await DB.init();
+  } catch (dbErr) {
+    console.error("[Bootstrap Error] DB init failed:", dbErr);
   }
 
   // 3. Initialize Network Monitor & Cloud Sync Adapter

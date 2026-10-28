@@ -34,8 +34,8 @@
       document.head.appendChild(fallbackScript);
     }
   </script>
-  <!-- Robust 1D/2D Barcode Reader Engine (ZXing UMD Build) -->
-  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+  <!-- Robust 1D/2D Barcode Reader Engine (ZXing UMD Build - 100% Offline Bundled) -->
+  <script src="js/lib/zxing.min.js"></script>
 </head>
 <body data-theme="modern">
 
@@ -67,6 +67,7 @@
             maxlength="6" 
             placeholder="••••" 
             readonly 
+            inputmode="none" 
             autofocus 
           />
         </div>

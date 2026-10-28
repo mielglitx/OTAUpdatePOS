@@ -117,7 +117,7 @@ class PosLocalWebServer {
 /// Over-The-Air (OTA) Update Manager using GitHub Releases
 class OtaManager {
   static const String _defaultRepo = 'mielglitx/otaupdatepos';
-  static const String _bundledVersion = 'v1.0.0 (Bundled)';
+  static const String _bundledVersion = 'v1.0.10';
 
   /// Returns the current installed web version
   static Future<String> getCurrentVersion() async {

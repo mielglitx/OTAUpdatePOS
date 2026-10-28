@@ -2,6 +2,8 @@
  * Module Description: Terminal Login & Security Lock Screen Controller
  * Governs terminal authentication, physical keyboard listeners, and touch numpad input buffers.
  * Operates purely on high-speed numeric PIN authentication with camera hardware overhead removed.
+ * Implements robust universal event delegation across touchscreen terminals (Sunmi POS, tablets),
+ * mouse clicks, and physical barcode/keyboard inputs with zero latency and synthetic click suppression.
  * Provides explicit lock() and lockTerminal() interfaces with reliable overlay visibility toggling,
  * admin portal dismissal, session clearance, and active cashier badge reconciliation.
  */
@@ -23,10 +25,12 @@ export const LoginUI = {
     this.callbacks = callbacks;
 
     const screen = document.getElementById("login-screen");
+    const numpadGrid = screen ? screen.querySelector(".numpad-grid") : document.querySelector(".numpad-grid");
 
     // Cache DOM selections with strict scoping to the login screen
     this.elements = {
       screen,
+      numpadGrid,
       pinInput: document.getElementById("login-pin-input"),
       errorMsg: document.getElementById("login-error-msg"),
       btnClear: screen ? screen.querySelector("#btn-pin-clear") : document.getElementById("btn-pin-clear"),
@@ -37,49 +41,68 @@ export const LoginUI = {
       numButtons: screen ? screen.querySelectorAll(".btn-num[data-val]") : document.querySelectorAll("#login-screen .btn-num[data-val]")
     };
 
-    // Attach virtual numpad click listeners with strict double-tap suppression
-    let lastTapTime = 0;
-    const triggerInput = (fn, e) => {
-      if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+    // Centralized action processor with synthetic duplicate suppression
+    let lastHandledTime = 0;
+    const processButtonAction = (btn, e) => {
+      if (!btn) return;
       const now = Date.now();
-      // Drop synthetic duplicate clicks arriving within 220ms of pointerdown
-      if (now - lastTapTime < 220) return;
-      lastTapTime = now;
-      fn();
+      // Drop duplicate synthetic click events arriving within 90ms of touchend
+      if (now - lastHandledTime < 90) return;
+      lastHandledTime = now;
+
+      // Provide instant tactile visual feedback on press
+      btn.classList.add("btn-num-pressed");
+      setTimeout(() => btn.classList.remove("btn-num-pressed"), 100);
+
+      const val = btn.dataset.val;
+      if (val !== undefined) {
+        this.appendDigit(val);
+      } else if (btn.id === "btn-pin-clear" || btn.classList.contains("btn-clear")) {
+        this.clearPin();
+      } else if (btn.id === "btn-pin-submit" || btn.classList.contains("btn-submit")) {
+        this.submitLogin();
+      }
     };
 
-    if (this.elements.numButtons && this.elements.numButtons.length > 0) {
-      this.elements.numButtons.forEach((btn) => {
-        const val = btn.dataset.val;
-        btn.onclick = (e) => triggerInput(() => this.appendDigit(val), e);
-        btn.onpointerdown = (e) => {
-          if (e.pointerType === "touch" || e.pointerType === "pen") {
-            triggerInput(() => this.appendDigit(val), e);
+    // 1. Delegated touch & click listeners on the numpad container (100% resilient across all Android POS WebViews)
+    if (this.elements.numpadGrid) {
+      // Zero-latency touchend activation with synthetic click cancellation
+      this.elements.numpadGrid.addEventListener(
+        "touchend",
+        (e) => {
+          const btn = e.target.closest("button.btn-num");
+          if (btn) {
+            if (e.cancelable) {
+              e.preventDefault();
+            }
+            processButtonAction(btn, e);
           }
-        };
+        },
+        { passive: false }
+      );
+
+      // Standard click activation (for mouse, stylus, accessibility, and devices where touchend does not fire)
+      this.elements.numpadGrid.addEventListener("click", (e) => {
+        const btn = e.target.closest("button.btn-num");
+        if (btn) {
+          processButtonAction(btn, e);
+        }
       });
     }
 
-    // Attach action button listeners
+    // 2. Direct element binding fallback for maximum compatibility across older browser engines
+    if (this.elements.numButtons && this.elements.numButtons.length > 0) {
+      this.elements.numButtons.forEach((btn) => {
+        btn.onclick = (e) => processButtonAction(btn, e);
+      });
+    }
+
     if (this.elements.btnClear) {
-      this.elements.btnClear.onclick = (e) => triggerInput(() => this.clearPin(), e);
-      this.elements.btnClear.onpointerdown = (e) => {
-        if (e.pointerType === "touch" || e.pointerType === "pen") {
-          triggerInput(() => this.clearPin(), e);
-        }
-      };
+      this.elements.btnClear.onclick = (e) => processButtonAction(this.elements.btnClear, e);
     }
 
     if (this.elements.btnSubmit) {
-      this.elements.btnSubmit.onclick = (e) => triggerInput(() => this.submitLogin(), e);
-      this.elements.btnSubmit.onpointerdown = (e) => {
-        if (e.pointerType === "touch" || e.pointerType === "pen") {
-          triggerInput(() => this.submitLogin(), e);
-        }
-      };
+      this.elements.btnSubmit.onclick = (e) => processButtonAction(this.elements.btnSubmit, e);
     }
 
     if (this.elements.btnLockTerminal) {
@@ -164,6 +187,10 @@ export const LoginUI = {
     }
 
     try {
+      // Ensure database is fully initialized prior to authenticating
+      if (typeof DB.init === "function") {
+        await DB.init();
+      }
       const user = await DB.authenticateUser(this.pinBuffer);
       if (user) {
         this.authenticateSuccess(user);
@@ -259,4 +286,4 @@ export const LoginUI = {
   }
 };
 
-// REMARK: LOGIN_UI_JS_LOCK_METHOD_AND_VISIBILITY_REPAIRED_COMPLETE
+// REMARK: LOGIN_UI_JS_BULLETPROOF_EVENT_DELEGATION_AND_STARTUP_PRIORITY_COMPLETE

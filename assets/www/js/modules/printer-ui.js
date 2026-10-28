@@ -63,12 +63,54 @@ export const PrinterUI = {
       newPrinterUsbPort: document.getElementById("new-printer-usb-port"),
 
       btnSaveNewPrinter: document.getElementById("btn-save-new-printer"),
-      btnKickDrawer: document.getElementById("btn-kick-drawer")
+      btnKickDrawer: document.getElementById("btn-kick-drawer"),
+      printerHubAutoOpenDrawerToggle: document.getElementById("printer-hub-auto-open-drawer-toggle")
     };
+
+    // Auto-open drawer toggle synchronization across views
+    Bus.on("store:auto-drawer-changed", (val) => {
+      if (this.elements.printerHubAutoOpenDrawerToggle) {
+        this.elements.printerHubAutoOpenDrawerToggle.checked = Boolean(val);
+      }
+    });
+
+    const syncDrawerCheckbox = async () => {
+      if (!this.elements.printerHubAutoOpenDrawerToggle) return;
+      try {
+        const store = await DB.getStoreSettings();
+        let autoOpen = true;
+        if (store && store.autoOpenDrawer !== undefined && store.autoOpenDrawer !== null) {
+          autoOpen = store.autoOpenDrawer !== false && store.autoOpenDrawer !== "false" && store.autoOpenDrawer !== 0;
+        } else {
+          const local = localStorage.getItem("pos_auto_open_drawer");
+          if (local !== null) {
+            autoOpen = local === "true";
+          }
+        }
+        this.elements.printerHubAutoOpenDrawerToggle.checked = autoOpen;
+        try {
+          localStorage.setItem("pos_auto_open_drawer", String(autoOpen));
+        } catch (_) {}
+      } catch (_) {}
+    };
+
+    syncDrawerCheckbox();
+
+    if (this.elements.printerHubAutoOpenDrawerToggle) {
+      this.elements.printerHubAutoOpenDrawerToggle.onchange = async () => {
+        const val = Boolean(this.elements.printerHubAutoOpenDrawerToggle.checked);
+        await DB.saveStoreSettings({ autoOpenDrawer: val });
+        try {
+          localStorage.setItem("pos_auto_open_drawer", String(val));
+        } catch (_) {}
+        Bus.emit("store:auto-drawer-changed", val);
+      };
+    }
 
     // 1. Open Printer Hub Modal
     if (this.elements.btnPrinterDialog) {
       this.elements.btnPrinterDialog.onclick = async () => {
+        await syncDrawerCheckbox();
         if (this.elements.printerFilterInterface) {
           this.elements.printerFilterInterface.value = "all";
         }

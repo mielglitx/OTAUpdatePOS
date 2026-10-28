@@ -916,12 +916,31 @@ ${buzzerCallout}
         try {
           const enabledPrinters = await DB.getEnabledPrinters();
           const localDrawer = localStorage.getItem("pos_auto_open_drawer");
-          let shouldKickDrawer = false;
-          if (localDrawer !== null) {
-            shouldKickDrawer = localDrawer === "true";
+
+          // Strict cash drawer kick authorization:
+          // If store.autoOpenDrawer is explicitly disabled, or localDrawer is explicitly disabled,
+          // DO NOT kick the drawer under any circumstances.
+          const isStoreDisabled = 
+            store.autoOpenDrawer === false || 
+            store.autoOpenDrawer === "false" || 
+            store.autoOpenDrawer === 0 || 
+            store.autoOpenDrawer === "0";
+
+          const isLocalDisabled = 
+            localDrawer === "false" || 
+            localDrawer === "0" || 
+            localDrawer === false;
+
+          let shouldKickDrawer = true;
+          if (isStoreDisabled || isLocalDisabled) {
+            shouldKickDrawer = false;
+          } else if (localDrawer === "true" || localDrawer === true) {
+            shouldKickDrawer = true;
           } else {
-            shouldKickDrawer = store.autoOpenDrawer === true || (store.autoOpenDrawer !== false && store.autoOpenDrawer !== "false");
+            shouldKickDrawer = store.autoOpenDrawer !== false && store.autoOpenDrawer !== "false";
           }
+
+          console.log(`[Cash Checkout] Drawer kick decision: ${shouldKickDrawer} (store.autoOpenDrawer=${store.autoOpenDrawer}, localDrawer=${localDrawer})`);
 
           const tasks = [Printer.broadcastReceipt(enabledPrinters, receiptTicket)];
           if (shouldKickDrawer) {

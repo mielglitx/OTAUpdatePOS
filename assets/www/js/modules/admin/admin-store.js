@@ -72,14 +72,41 @@ export const AdminStore = {
       }
     });
 
+    // Synchronize auto open drawer toggle across all panels in real time
+    Bus.on("store:auto-drawer-changed", (val) => {
+      if (this.elements.storeAutoOpenDrawerCheckbox) {
+        this.elements.storeAutoOpenDrawerCheckbox.checked = Boolean(val);
+      }
+    });
+
+    // Initialize checkbox state immediately on startup from DB & localStorage
+    DB.getStoreSettings().then((settings) => {
+      if (this.elements.storeAutoOpenDrawerCheckbox) {
+        let autoOpen = true;
+        if (settings && settings.autoOpenDrawer !== undefined && settings.autoOpenDrawer !== null) {
+          autoOpen = settings.autoOpenDrawer !== false && settings.autoOpenDrawer !== "false" && settings.autoOpenDrawer !== 0;
+        } else {
+          const localDrawer = localStorage.getItem("pos_auto_open_drawer");
+          if (localDrawer !== null) {
+            autoOpen = localDrawer === "true";
+          }
+        }
+        this.elements.storeAutoOpenDrawerCheckbox.checked = autoOpen;
+        try {
+          localStorage.setItem("pos_auto_open_drawer", String(autoOpen));
+        } catch (_) {}
+      }
+    }).catch(() => {});
+
     // Instant Auto-Save for Cash Drawer Toggle
     if (this.elements.storeAutoOpenDrawerCheckbox) {
       this.elements.storeAutoOpenDrawerCheckbox.onchange = async () => {
-        const val = this.elements.storeAutoOpenDrawerCheckbox.checked;
+        const val = Boolean(this.elements.storeAutoOpenDrawerCheckbox.checked);
         await DB.saveStoreSettings({ autoOpenDrawer: val });
         try {
           localStorage.setItem("pos_auto_open_drawer", String(val));
         } catch (_) {}
+        Bus.emit("store:auto-drawer-changed", val);
       };
     }
 
@@ -229,7 +256,7 @@ export const AdminStore = {
         const karinderyaSuppressPager = this.elements.cbKarinderyaSuppressPager ? Boolean(this.elements.cbKarinderyaSuppressPager.checked) : true;
         const karinderyaVoucherOnly = this.elements.cbKarinderyaVoucherOnly ? Boolean(this.elements.cbKarinderyaVoucherOnly.checked) : false;
 
-        const autoOpenDrawer = this.elements.storeAutoOpenDrawerCheckbox ? this.elements.storeAutoOpenDrawerCheckbox.checked : true;
+        const autoOpenDrawer = this.elements.storeAutoOpenDrawerCheckbox ? Boolean(this.elements.storeAutoOpenDrawerCheckbox.checked) : true;
 
         const payload = {
           storeName,
@@ -254,6 +281,10 @@ export const AdminStore = {
         };
 
         await DB.saveStoreSettings(payload);
+        try {
+          localStorage.setItem("pos_auto_open_drawer", String(autoOpenDrawer));
+        } catch (_) {}
+        Bus.emit("store:auto-drawer-changed", autoOpenDrawer);
         Bus.emit("store:karinderya-changed", karinderyaMode);
         Bus.emit("store:karinderya-settings-updated", payload);
         alert("Store Profile, GCash Settings & Fast Mode settings saved successfully.");
@@ -274,12 +305,19 @@ export const AdminStore = {
     if (this.elements.storeTaglineInput) this.elements.storeTaglineInput.value = settings.tagline || "";
 
     if (this.elements.storeAutoOpenDrawerCheckbox) {
-      const localDrawer = localStorage.getItem("pos_auto_open_drawer");
-      if (localDrawer !== null) {
-        this.elements.storeAutoOpenDrawerCheckbox.checked = localDrawer === "true";
+      let autoOpen = true;
+      if (settings && settings.autoOpenDrawer !== undefined && settings.autoOpenDrawer !== null) {
+        autoOpen = settings.autoOpenDrawer !== false && settings.autoOpenDrawer !== "false" && settings.autoOpenDrawer !== 0;
       } else {
-        this.elements.storeAutoOpenDrawerCheckbox.checked = settings.autoOpenDrawer !== false && settings.autoOpenDrawer !== "false";
+        const localDrawer = localStorage.getItem("pos_auto_open_drawer");
+        if (localDrawer !== null) {
+          autoOpen = localDrawer === "true";
+        }
       }
+      this.elements.storeAutoOpenDrawerCheckbox.checked = autoOpen;
+      try {
+        localStorage.setItem("pos_auto_open_drawer", String(autoOpen));
+      } catch (_) {}
     }
 
     const isPagerEnabled = Boolean(settings.useNumberPager);

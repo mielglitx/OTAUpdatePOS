@@ -1925,6 +1925,23 @@
         <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-printer-hub">✖ Close</button>
       </div>
 
+      <!-- Cash Drawer Auto-Kick Hardware Setting -->
+      <div class="printer-drawer-banner" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; margin: 10px 0 14px 0; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px;">
+        <div style="flex: 1; padding-right: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.1rem;">⚡</span>
+            <span style="font-weight: 700; font-size: 0.92rem; color: #1e293b;">Automatically Open Cash Drawer on Cash Sale</span>
+          </div>
+          <p class="printer-hint-text" style="margin: 3px 0 0; font-size: 0.78rem;">
+            Pops open connected cash drawer (ESC/POS kick) after cash transactions. Turn OFF to keep drawer shut.
+          </p>
+        </div>
+        <label class="checkbox-label checkbox-label-strong" style="user-select: none; cursor: pointer;">
+          <input type="checkbox" id="printer-hub-auto-open-drawer-toggle" class="input-checkbox-lg" checked />
+          <span style="font-weight: 700;">Auto-Open</span>
+        </label>
+      </div>
+
       <div class="printer-section-title">
         <span>Active & Paired Printers</span>
         <div class="printer-section-actions">

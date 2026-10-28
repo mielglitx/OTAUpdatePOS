@@ -467,6 +467,9 @@ export const DB = {
 
     try {
       localStorage.setItem("pos_store_settings", JSON.stringify(merged));
+      if (merged.autoOpenDrawer !== undefined) {
+        localStorage.setItem("pos_auto_open_drawer", String(merged.autoOpenDrawer));
+      }
       if ("BroadcastChannel" in window) {
         const channel = new BroadcastChannel("pos_customer_display");
         channel.postMessage({ type: "store:updated", data: merged });

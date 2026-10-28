@@ -671,7 +671,7 @@ export const AdminHotspot = {
               "ADMIN-MASTER-PASS",
               "", // uncapped speed
               "unlimited", // unlimited devices
-              store.hotspotProfile || "default",
+              "ADMIN-WIFI", // dedicated multi-device profile
               "" // unlimited time
             );
           } catch (routerErr) {

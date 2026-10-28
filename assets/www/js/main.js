@@ -70,6 +70,84 @@ async function printLogoutReport(user) {
   }
 }
 
+/**
+ * Over-The-Air (OTA) Startup Update Verification
+ * Runs on application boot to check GitHub for updates and prompts cashier/admin immediately.
+ */
+async function checkStartupOtaUpdate() {
+  if (typeof window === "undefined" || !window.flutter_inappwebview || typeof window.flutter_inappwebview.callHandler !== "function") {
+    return;
+  }
+
+  try {
+    const res = await window.flutter_inappwebview.callHandler("checkOtaUpdate");
+    if (!res || !res.ok) return;
+
+    const hasUpdate = Boolean(res.updateAvailable || res.hasUpdate);
+    if (!hasUpdate) return;
+
+    const modal = document.getElementById("modal-startup-ota");
+    if (!modal) return;
+
+    const txtVersion = document.getElementById("startup-ota-version");
+    const txtNotes = document.getElementById("startup-ota-notes");
+    const progressBox = document.getElementById("startup-ota-progress");
+    const progressMsg = document.getElementById("startup-ota-progress-msg");
+    const actionsBox = document.getElementById("startup-ota-actions");
+    const btnInstall = document.getElementById("btn-startup-ota-install");
+    const btnSkip = document.getElementById("btn-startup-ota-skip");
+
+    if (txtVersion) {
+      txtVersion.textContent = `${res.latestVersion} (Current: ${res.currentVersion})`;
+    }
+    if (txtNotes) {
+      txtNotes.innerHTML = res.releaseNotes
+        ? res.releaseNotes.replace(/\r?\n/g, "<br>")
+        : "Enhancements, fixes, and performance improvements.";
+    }
+
+    if (btnSkip) {
+      btnSkip.onclick = () => {
+        modal.close();
+      };
+    }
+
+    if (btnInstall) {
+      btnInstall.onclick = async () => {
+        btnInstall.disabled = true;
+        if (btnSkip) btnSkip.disabled = true;
+        if (progressBox) progressBox.classList.remove("hidden");
+        if (progressMsg) progressMsg.textContent = `Downloading & installing ${res.latestVersion}... Please do not exit.`;
+        if (actionsBox) actionsBox.classList.add("hidden");
+
+        try {
+          const updateRes = await window.flutter_inappwebview.callHandler(
+            "performOtaUpdate",
+            res.downloadUrl,
+            res.latestVersion
+          );
+
+          if (updateRes && updateRes.ok) {
+            if (progressMsg) {
+              progressMsg.innerHTML = `<span style="color: #16a34a; font-weight: bold;">✅ Update applied successfully! Reloading POS...</span>`;
+            }
+          } else {
+            alert(`Update failed: ${updateRes?.error || "Unknown extraction error"}`);
+            modal.close();
+          }
+        } catch (updateErr) {
+          alert(`Could not install OTA update: ${updateErr.message}`);
+          modal.close();
+        }
+      };
+    }
+
+    modal.showModal();
+  } catch (err) {
+    console.warn("[Startup OTA Check Error]:", err);
+  }
+}
+
 async function initApp() {
   try {
     // 1. Initialize IndexedDB schema, seed master records, and sync settings
@@ -210,6 +288,16 @@ async function initApp() {
     if (btnClearCart) {
       btnClearCart.onclick = () => Cart.clear();
     }
+    // 11. Over-The-Air (OTA) Startup Update Verification
+    // Checks for newly published updates on application startup
+    setTimeout(async () => {
+      try {
+        await checkStartupOtaUpdate();
+      } catch (otaErr) {
+        console.warn("[Startup OTA Check Notice]:", otaErr);
+      }
+    }, 1500);
+
     if (btnLockTerminal) {
       btnLockTerminal.onclick = () => {
         // Immediate zero-latency terminal lock: locks in 0ms without waiting for thermal printer

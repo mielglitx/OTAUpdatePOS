@@ -166,11 +166,21 @@ class _POSContainerState extends State<POSContainer> with WidgetsBindingObserver
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // Attempt auto-mounting of customer display on secondary monitor
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       launchSecondaryPresentation();
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) launchSecondaryPresentation();
       });
+
+      // Startup Over-The-Air (OTA) Update Verification
+      try {
+        final updateCheck = await OtaManager.checkGithubRelease();
+        if (updateCheck['ok'] == true && updateCheck['hasUpdate'] == true) {
+          debugPrint('[Startup OTA Notice] New release ${updateCheck['latestVersion']} detected on startup.');
+        }
+      } catch (e) {
+        debugPrint('[Startup OTA Check Error]: $e');
+      }
     });
   }
 

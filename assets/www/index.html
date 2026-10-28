@@ -2926,6 +2926,37 @@
     </div>
   </dialog>
 
+    <!-- ============================================================= -->
+  <!-- MODAL: STARTUP OVER-THE-AIR (OTA) UPDATE NOTIFICATION         -->
+  <!-- ============================================================= -->
+  <dialog class="pos-modal" id="modal-startup-ota" style="max-width: 480px; width: 92%;">
+    <div class="modal-content" style="padding: 24px; text-align: center;">
+      <div style="font-size: 3rem; margin-bottom: 8px;">🚀</div>
+      <h3 class="modal-title" id="startup-ota-title" style="font-size: 1.35rem; margin-bottom: 4px;">New Update Available!</h3>
+      <p id="startup-ota-version" style="color: var(--accent); font-weight: 700; font-size: 1.05rem; margin-bottom: 12px;">Version v1.0.5</p>
+      
+      <div id="startup-ota-notes" style="background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; font-size: 0.8rem; text-align: left; max-height: 140px; overflow-y: auto; color: var(--text-muted); line-height: 1.4;">
+        Loading changelog...
+      </div>
+
+      <div id="startup-ota-progress" class="hidden" style="margin-bottom: 16px;">
+        <div style="font-size: 0.86rem; font-weight: 600; color: var(--accent); margin-bottom: 8px;" id="startup-ota-progress-msg">
+          ⏳ Downloading update package... Please wait.
+        </div>
+        <div style="width: 100%; height: 8px; background: var(--bg-alt); border-radius: 4px; overflow: hidden; border: 1px solid var(--border);">
+          <div style="width: 100%; height: 100%; background: var(--accent); animation: pulse 1.2s infinite ease-in-out;"></div>
+        </div>
+      </div>
+
+      <div class="modal-actions" id="startup-ota-actions" style="display: flex; gap: 10px; justify-content: center;">
+        <button type="button" class="btn-danger-outline btn-sm" id="btn-startup-ota-skip">Later</button>
+        <button type="button" class="btn-pay btn-cash" id="btn-startup-ota-install" style="font-size: 0.92rem; padding: 10px 24px;">
+          ⚡ Update Now
+        </button>
+      </div>
+    </div>
+  </dialog>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

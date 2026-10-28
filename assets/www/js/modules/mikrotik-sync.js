@@ -223,18 +223,92 @@ export const MikrotikSync = {
   },
 
   /**
+   * Verifies and provisions a dedicated Hotspot User Profile on the MikroTik router.
+   * Guarantees dedicated multi-device profiles (e.g. 'ADMIN-WIFI' and 'CREW-WIFI') have
+   * shared-users='unlimited' (or 9999) so multiple phones/laptops can log in concurrently without captive portal block.
+   * @param {Object} config - Store hotspot settings
+   * @param {string} profileName - Profile identifier ('ADMIN-WIFI', 'CREW-WIFI', etc.)
+   * @param {string} [sharedUsers="unlimited"] - 'unlimited' or '1'
+   * @param {string} [rateLimit=""] - Bandwidth throttle (e.g. '' for uncapped)
+   * @returns {Promise<boolean>}
+   */
+  async ensureHotspotProfileOnRouter(config, profileName, sharedUsers = "unlimited", rateLimit = "") {
+    if (!profileName || !profileName.trim()) return false;
+    const cleanProfile = profileName.trim();
+    const isUnlimited = String(sharedUsers).toLowerCase() === "unlimited" || String(sharedUsers) === "0";
+    const targetSharedUsers = isUnlimited ? "unlimited" : "1";
+
+    try {
+      // 1. Query existing profiles from router
+      const listRes = await this.executeRestCall("GET", "/ip/hotspot/user/profile", config, null, 4000);
+
+      if (listRes.ok && Array.isArray(listRes.data)) {
+        const existing = listRes.data.find((p) => p.name === cleanProfile);
+
+        if (existing) {
+          const currentShared = String(existing["shared-users"] || "1").toLowerCase();
+          const needsSharedUpdate = isUnlimited && currentShared !== "unlimited" && parseInt(currentShared, 10) <= 1;
+
+          if (needsSharedUpdate) {
+            console.log(`[MikroTik Profile] Updating profile '${cleanProfile}' to shared-users=unlimited...`);
+            const patchPayload = { "shared-users": targetSharedUsers };
+            if (rateLimit) patchPayload["rate-limit"] = rateLimit;
+
+            const profileId = encodeURIComponent(existing[".id"] || cleanProfile);
+            let patchRes = await this.executeRestCall("PATCH", `/ip/hotspot/user/profile/${profileId}`, config, patchPayload, 4000);
+            if (!patchRes.ok) {
+              patchRes = await this.executeRestCall("POST", `/ip/hotspot/user/profile/${profileId}`, config, patchPayload, 4000);
+            }
+            if (!patchRes.ok) {
+              patchPayload["shared-users"] = "9999";
+              await this.executeRestCall("PATCH", `/ip/hotspot/user/profile/${profileId}`, config, patchPayload, 4000);
+            }
+          }
+          return true;
+        }
+      }
+
+      // 2. Profile does not exist: Provision it on the router
+      console.log(`[MikroTik Profile] Creating profile '${cleanProfile}' with shared-users=${targetSharedUsers}...`);
+      const createPayload = {
+        name: cleanProfile,
+        "shared-users": targetSharedUsers
+      };
+      if (rateLimit) createPayload["rate-limit"] = rateLimit;
+
+      let createRes = await this.executeRestCall("PUT", "/ip/hotspot/user/profile", config, createPayload, 4000);
+      if (!createRes.ok && createRes.status === 405) {
+        createRes = await this.executeRestCall("POST", "/ip/hotspot/user/profile", config, createPayload, 4000);
+      }
+
+      // Fallback for firmware versions requiring numeric integer for shared-users
+      if (!createRes.ok && isUnlimited) {
+        createPayload["shared-users"] = "9999";
+        createRes = await this.executeRestCall("PUT", "/ip/hotspot/user/profile", config, createPayload, 4000);
+        if (!createRes.ok && createRes.status === 405) {
+          createRes = await this.executeRestCall("POST", "/ip/hotspot/user/profile", config, createPayload, 4000);
+        }
+      }
+
+      return createRes.ok || createRes.status === 201;
+    } catch (err) {
+      console.warn(`[MikroTik Profile] Could not ensure profile '${cleanProfile}':`, err.message);
+      return false;
+    }
+  },
+
+  /**
    * Pushes a single hotspot user voucher directly to MikroTik RouterOS via REST API.
    * Sets BOTH name and password to the identical uppercase code.
-   * Supports rate-limiting comments, custom profiles (e.g. CREW-WIFI), and custom session uptimes.
-   * NOTE: In RouterOS REST API, 'rate-limit' and 'shared-users' belong exclusively to the user profile
-   * (/ip/hotspot/user/profile), not /ip/hotspot/user. They are safely recorded in the comment.
+   * Automatically provisions dedicated multi-device profiles ('ADMIN-WIFI' and 'CREW-WIFI')
+   * with shared-users='unlimited' on the router hardware to prevent multi-device captive portal blocks.
    * @param {Object} config 
    * @param {string} code 
    * @param {string|null} [unusedPin]
    * @param {string} [orderNumber=""] 
    * @param {string|null} [rateLimit=null] - Optional bandwidth rate e.g. '2M/5M'
    * @param {string} [sharedUsers="1"] - '1' (Single User) or 'unlimited'
-   * @param {string|null} [profileOverride=null] - Explicit profile name (e.g. 'CREW-WIFI')
+   * @param {string|null} [profileOverride=null] - Explicit profile name (e.g. 'ADMIN-WIFI', 'CREW-WIFI')
    * @param {string|null} [uptimeOverride=null] - Explicit session duration (e.g. '12h' or '7d')
    * @returns {Promise<boolean>}
    */
@@ -251,14 +325,33 @@ export const MikrotikSync = {
     const cleanCode = String(code).trim().toUpperCase();
     const finalRate = rateLimit || config.hotspotRateLimit || "";
     const resolvedShared = (sharedUsers !== null && sharedUsers !== undefined) ? sharedUsers : (config.hotspotSharedUsers || "1");
-    const isUnlimited = String(resolvedShared) === "unlimited" || String(resolvedShared) === "0";
+    const isUnlimited = String(resolvedShared).toLowerCase() === "unlimited" || String(resolvedShared) === "0";
     const deviceLabel = isUnlimited ? "Unlimited Devices" : "1 Device";
     const isUptimeUnlimited = uptimeOverride === "" || uptimeOverride === "0" || String(uptimeOverride).toLowerCase() === "unlimited";
     const uptime = isUptimeUnlimited ? "" : (uptimeOverride || config.hotspotUptime || "2h").trim();
-    const targetProfile = (profileOverride || config.hotspotProfile || "default").trim();
 
-    // Valid parameters for RouterOS /ip/hotspot/user:
-    // name, password, profile, limit-uptime, comment
+    // Determine target profile:
+    // If Admin Pass: dedicated "ADMIN-WIFI"
+    // If Crew Pass: dedicated "CREW-WIFI"
+    // Otherwise: profileOverride or configured customer profile
+    let targetProfile = "default";
+    if (orderNumber === "ADMIN-MASTER-PASS" || profileOverride === "ADMIN-WIFI") {
+      targetProfile = "ADMIN-WIFI";
+    } else if (orderNumber === "CREW-PASS" || profileOverride === "CREW-WIFI") {
+      targetProfile = "CREW-WIFI";
+    } else if (profileOverride && profileOverride.trim()) {
+      targetProfile = profileOverride.trim();
+    } else if (config.hotspotProfile && config.hotspotProfile.trim()) {
+      targetProfile = config.hotspotProfile.trim();
+    }
+
+    // Always ensure multi-device profiles exist on the router with shared-users='unlimited'
+    if (isUnlimited || targetProfile === "ADMIN-WIFI" || targetProfile === "CREW-WIFI") {
+      await this.ensureHotspotProfileOnRouter(config, targetProfile, "unlimited", finalRate);
+    } else if (config.hotspotProfile && config.hotspotSharedUsers) {
+      await this.ensureHotspotProfileOnRouter(config, targetProfile, config.hotspotSharedUsers, finalRate);
+    }
+
     const payload = {
       name: cleanCode,
       password: cleanCode,
@@ -274,6 +367,12 @@ export const MikrotikSync = {
 
       if (!res.ok && res.status === 405) {
         res = await this.executeRestCall("POST", "/ip/hotspot/user", config, payload, 4000);
+      }
+
+      // If user already exists on router, delete old record and recreate with the new profile
+      if (!res.ok && res.status === 400 && String(res.data?.detail || "").includes("already have user")) {
+        await this.deleteHotspotUserOnRouter(config, cleanCode);
+        res = await this.executeRestCall("PUT", "/ip/hotspot/user", config, payload, 4000);
       }
 
       // If the target profile does not exist on the router, attempt fallback to 'default'

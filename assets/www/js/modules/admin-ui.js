@@ -16,6 +16,8 @@ import { AdminStore } from "./admin/admin-store.js";
 import { AdminSync } from "./admin/admin-sync.js";
 import { AdminHotspot } from "./admin/admin-hotspot.js";
 import { AdminBackup } from "./admin/admin-backup.js";
+import { AdminDisplay } from "./admin/admin-display.js";
+import { AdminTables } from "./admin/admin-tables.js";
 
 export const AdminUI = {
   elements: {},
@@ -32,6 +34,8 @@ export const AdminUI = {
   sync: AdminSync,
   hotspot: AdminHotspot,
   backup: AdminBackup,
+  display: AdminDisplay,
+  tables: AdminTables,
 
   /**
    * Initializes master portal DOM bindings and bootstraps all sub-modules
@@ -130,6 +134,14 @@ export const AdminUI = {
       await this.hotspot.loadHotspotSettings();
     } else if (tabName === "backup") {
       await this.backup.loadBackupSettings();
+    } else if (tabName === "display") {
+      if (this.display && typeof this.display.loadDisplaySettings === "function") {
+        await this.display.loadDisplaySettings();
+      }
+    } else if (tabName === "tables") {
+      if (this.tables && typeof this.tables.loadData === "function") {
+        await this.tables.loadData();
+      }
     }
   },
 

@@ -1,10 +1,11 @@
 /**
  * Module Description: Dining & Floor Plan Table Layout Management Sub-Module
- * Provides manual visual 2D floor plan drawing and layouting of dining areas
- * using basic shapes (square, round, rectangle, counter, wall), customizable table
- * numbering and seat capacities, real-time interactive cashier floor plan picker,
- * full table order details inspection, live bill totals, itemized check printing,
- * direct pay checkout, and automatic table release upon payment.
+ * Completely reworked for intuitive, responsive 2D dining area layouting.
+ * Supports manual drawing using basic shapes (square table, round table, rectangle table,
+ * counter/bar, and wall/divider partitions), smooth rock-solid mouse and touch drag-and-drop,
+ * customizable table numbers and seat capacities, real-time cashier floor plan picker,
+ * table order assignment, full itemized order inspection, thermal bill printing,
+ * direct bill out payment, and automatic table release upon checkout.
  */
 
 import { DB } from "../db.js";
@@ -82,6 +83,7 @@ export const AdminTables = {
 
       // Table Add/Edit Modal
       modalTableForm: document.getElementById("modal-table-form"),
+      titleModalTableForm: document.getElementById("title-modal-table-form"),
       formTableId: document.getElementById("form-table-id"),
       formTableName: document.getElementById("form-table-name"),
       formTableSection: document.getElementById("form-table-section"),
@@ -164,7 +166,7 @@ export const AdminTables = {
       };
     }
 
-    // 5. Basic Shape Palette Buttons (Quick Draw)
+    // 5. Basic Shape Palette Buttons (Quick Draw Dining Area)
     if (this.elements.btnDrawSquare) {
       this.elements.btnDrawSquare.onclick = () => this.addShape("square");
     }
@@ -209,7 +211,7 @@ export const AdminTables = {
         for (const t of this.tables) {
           await DB.saveTable(t);
         }
-        alert("Floor plan layout positions saved.");
+        alert("Floor plan layout positions saved successfully!");
       };
     }
 
@@ -236,7 +238,7 @@ export const AdminTables = {
     if (this.elements.btnDeleteTableForm) {
       this.elements.btnDeleteTableForm.onclick = async () => {
         if (this.editingTableId) {
-          if (confirm("Are you sure you want to permanently delete this table?")) {
+          if (confirm("Are you sure you want to permanently delete this table/element?")) {
             await DB.deleteTable(this.editingTableId);
             if (this.elements.modalTableForm) this.elements.modalTableForm.close();
             await this.loadData();
@@ -348,10 +350,20 @@ export const AdminTables = {
         if (!this.activeDetailTable) return;
         const items = this.activeDetailTable.activeOrderItems || [];
         try {
-          await Printer.printBillSlip(this.activeDetailTable, items);
-          alert(`🖨️ Bill slip sent to thermal printer for ${this.activeDetailTable.name}.`);
+          const store = await DB.getStoreSettings();
+          const billSlip = {
+            storeName: store.name || "RESTAURANT & CAFE",
+            tableName: this.activeDetailTable.name,
+            section: this.activeDetailTable.section,
+            items: items,
+            total: this.activeDetailTable.orderTotal || 0,
+            seatedAt: this.activeDetailTable.seatedAt,
+            printedAt: new Date().toLocaleString()
+          };
+          await Printer.printBillSlip(billSlip);
+          alert(`Bill slip printed for ${this.activeDetailTable.name}.`);
         } catch (err) {
-          alert("Error printing bill slip: " + err.message);
+          alert(`Could not print bill slip: ${err.message}`);
         }
       };
     }
@@ -359,28 +371,35 @@ export const AdminTables = {
     if (this.elements.btnTableOrderClear) {
       this.elements.btnTableOrderClear.onclick = async () => {
         if (!this.activeDetailTable) return;
-        if (confirm(`Clear ${this.activeDetailTable.name}? Occupancy and active order items will be released.`)) {
+        if (confirm(`Clear and release ${this.activeDetailTable.name}? This will free the table.`)) {
           await DB.clearTable(this.activeDetailTable.id);
+          const activeTicket = Cart.getActiveTicket();
+          if (activeTicket && activeTicket.tableId === this.activeDetailTable.id) {
+            delete activeTicket.tableId;
+            delete activeTicket.tableName;
+            delete activeTicket.tableSection;
+            Cart.notify();
+          }
           if (this.elements.modalTableOrderDetails) this.elements.modalTableOrderDetails.close();
           await this.loadData();
           if (this.elements.modalTablePicker && this.elements.modalTablePicker.open) {
-            this.renderCashierCanvas();
-            this.renderPickerGrid();
+            if (this.cashierViewMode === "canvas") this.renderCashierCanvas();
+            else this.renderPickerGrid();
           }
         }
       };
     }
 
-    // 11. Event Bus Hooks
-    Bus.on("cart:updated", () => {
-      this.updateCashierBadge();
-    });
-
+    // Bus events for real-time table sync across checkout and tickets
     Bus.on("tables:updated", async () => {
       await this.loadData();
     });
 
-    // Initial Load
+    Bus.on("order:completed", async () => {
+      await this.loadData();
+    });
+
+    // Initial Data Load
     await this.loadData();
   },
 
@@ -463,6 +482,7 @@ export const AdminTables = {
 
   /**
    * Adds a basic shape to the dining area with automatic next numbering
+   * Places shape directly into the visible canvas area and saves to DB.
    * @param {string} shape - 'square' | 'round' | 'rectangle' | 'counter' | 'wall'
    */
   async addShape(shape) {
@@ -482,15 +502,23 @@ export const AdminTables = {
       defaultName = `Counter ${nextNum}`;
       defaultSeats = 2;
     } else if (shape === "wall") {
-      defaultName = `Divider ${nextNum}`;
+      defaultName = `Wall ${nextNum}`;
       defaultSeats = 0;
     } else if (shape === "rectangle") {
       defaultSeats = 6;
+    } else if (shape === "round") {
+      defaultSeats = 4;
     }
 
+    // Determine smart placement within the canvas viewport
+    const wrap = this.elements.adminFloorCanvasWrap;
+    const scrollX = wrap ? wrap.scrollLeft : 0;
+    const scrollY = wrap ? wrap.scrollTop : 0;
     const count = this.tables.length;
-    const posX = 30 + ((count % 6) * 140);
-    const posY = 30 + (Math.floor(count / 6) * 100);
+    const offsetX = (count % 5) * 40;
+    const offsetY = (count % 5) * 35;
+    const posX = Math.max(20, scrollX + 40 + offsetX);
+    const posY = Math.max(20, scrollY + 40 + offsetY);
 
     const defaultSection = (this.activeSection !== "all" && this.activeSection) 
       ? this.activeSection 
@@ -515,6 +543,7 @@ export const AdminTables = {
 
   /**
    * Renders the 2D Visual Floor Plan Designer Canvas for Admin
+   * Features resilient Window-level drag & drop tracking with 10px snap and touch support.
    */
   renderAdminCanvas() {
     if (!this.elements.adminFloorCanvas) return;
@@ -535,8 +564,13 @@ export const AdminTables = {
       token.style.left = `${posX}px`;
       token.style.top = `${posY}px`;
 
+      // Content based on shape
       if (table.shape === "wall") {
-        token.innerHTML = `<span style="font-weight: 700; letter-spacing: 0.5px;">🧱 ${table.name}</span>`;
+        token.innerHTML = `
+          <div style="font-weight: 700; letter-spacing: 0.5px; font-size: 0.72rem; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; height: 100%;">
+            <span>🧱 ${table.name}</span>
+          </div>
+        `;
       } else if (table.shape === "counter") {
         token.innerHTML = `
           <div style="font-size: 0.8rem; font-weight: 800; display: flex; align-items: center; gap: 4px;">
@@ -556,67 +590,116 @@ export const AdminTables = {
         `;
       }
 
-      // Pointer Drag-and-Drop Handler
-      let isDragging = false;
-      let startX = 0;
-      let startY = 0;
-      let initialLeft = 0;
-      let initialTop = 0;
-      let hasMoved = false;
+      // Quick Delete & Edit Floating Controls on hover/touch
+      const controls = document.createElement("div");
+      controls.className = "token-quick-controls";
+      controls.style.position = "absolute";
+      controls.style.top = "-10px";
+      controls.style.right = "-10px";
+      controls.style.display = "none";
+      controls.style.gap = "4px";
+      controls.style.zIndex = "30";
 
+      const btnQuickEdit = document.createElement("button");
+      btnQuickEdit.type = "button";
+      btnQuickEdit.innerHTML = "✏️";
+      btnQuickEdit.title = "Edit Table";
+      btnQuickEdit.style.cssText = "width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-card); font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;";
+      btnQuickEdit.onclick = (e) => {
+        e.stopPropagation();
+        this.openTableModal(table);
+      };
+
+      const btnQuickDel = document.createElement("button");
+      btnQuickDel.type = "button";
+      btnQuickDel.innerHTML = "🗑️";
+      btnQuickDel.title = "Delete Table";
+      btnQuickDel.style.cssText = "width: 22px; height: 22px; border-radius: 50%; border: 1px solid #ef4444; background: #fee2e2; color: #dc2626; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;";
+      btnQuickDel.onclick = async (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete ${table.name}?`)) {
+          await DB.deleteTable(table.id);
+          await this.loadData();
+        }
+      };
+
+      controls.appendChild(btnQuickEdit);
+      controls.appendChild(btnQuickDel);
+      token.appendChild(controls);
+
+      token.onmouseenter = () => { controls.style.display = "flex"; };
+      token.onmouseleave = () => { controls.style.display = "none"; };
+
+      // ============================================================
+      // ROCK-SOLID WINDOW-LEVEL DRAG & DROP POINTER HANDLER
+      // ============================================================
       token.onpointerdown = (e) => {
-        // Prevent default text selection during drag
+        // If clicking a quick action button, ignore drag
+        if (e.target.closest("button")) return;
+
         e.preventDefault();
-        token.setPointerCapture(e.pointerId);
+        e.stopPropagation();
 
-        isDragging = true;
-        hasMoved = false;
-        startX = e.clientX;
-        startY = e.clientY;
-        initialLeft = parseInt(token.style.left, 10) || 0;
-        initialTop = parseInt(token.style.top, 10) || 0;
+        const canvas = this.elements.adminFloorCanvas;
+        const wrap = this.elements.adminFloorCanvasWrap;
+        if (!canvas || !wrap) return;
+
+        const tokenRect = token.getBoundingClientRect();
+        const offsetX = e.clientX - tokenRect.left;
+        const offsetY = e.clientY - tokenRect.top;
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        let hasMoved = false;
+
         token.classList.add("dragging");
+
+        const onPointerMove = (moveEvt) => {
+          const dx = moveEvt.clientX - startX;
+          const dy = moveEvt.clientY - startY;
+
+          if (Math.hypot(dx, dy) > 4) {
+            hasMoved = true;
+          }
+          if (!hasMoved) return;
+
+          const canvasRect = canvas.getBoundingClientRect();
+          let newLeft = moveEvt.clientX - canvasRect.left - offsetX;
+          let newTop = moveEvt.clientY - canvasRect.top - offsetY;
+
+          // Snap to 10px grid
+          newLeft = Math.round(newLeft / 10) * 10;
+          newTop = Math.round(newTop / 10) * 10;
+
+          // Bounds clamp within canvas
+          newLeft = Math.max(10, Math.min(newLeft, 1100));
+          newTop = Math.max(10, Math.min(newTop, 750));
+
+          token.style.left = `${newLeft}px`;
+          token.style.top = `${newTop}px`;
+          table.posX = newLeft;
+          table.posY = newTop;
+        };
+
+        const onPointerUp = async (upEvt) => {
+          window.removeEventListener("pointermove", onPointerMove);
+          window.removeEventListener("pointerup", onPointerUp);
+          window.removeEventListener("pointercancel", onPointerUp);
+
+          token.classList.remove("dragging");
+
+          if (hasMoved) {
+            await DB.saveTable(table);
+          } else {
+            // Click / Tap without movement: open modal to edit
+            this.openTableModal(table);
+          }
+        };
+
+        window.addEventListener("pointermove", onPointerMove, { passive: false });
+        window.addEventListener("pointerup", onPointerUp, { once: true });
+        window.addEventListener("pointercancel", onPointerUp, { once: true });
       };
-
-      token.onpointermove = (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-
-        if (Math.hypot(dx, dy) > 5) {
-          hasMoved = true;
-        }
-
-        let newX = Math.round((initialLeft + dx) / 10) * 10;
-        let newY = Math.round((initialTop + dy) / 10) * 10;
-
-        newX = Math.max(10, Math.min(newX, 900));
-        newY = Math.max(10, Math.min(newY, 560));
-
-        token.style.left = `${newX}px`;
-        token.style.top = `${newY}px`;
-        table.posX = newX;
-        table.posY = newY;
-      };
-
-      const handlePointerEnd = async (e) => {
-        if (!isDragging) return;
-        isDragging = false;
-        token.classList.remove("dragging");
-        try {
-          token.releasePointerCapture(e.pointerId);
-        } catch (_) {}
-
-        if (hasMoved) {
-          await DB.saveTable(table);
-        } else {
-          // Click: Open edit modal
-          this.openTableModal(table);
-        }
-      };
-
-      token.onpointerup = handlePointerEnd;
-      token.onpointercancel = handlePointerEnd;
 
       this.elements.adminFloorCanvas.appendChild(token);
     });
@@ -651,44 +734,28 @@ export const AdminTables = {
       wall: "🧱"
     };
 
-    const statusColors = {
-      available: "#22c55e",
-      occupied: "#f59e0b",
-      billed: "#3b82f6",
-      reserved: "#8b5cf6"
-    };
-
     this.elements.adminTablesGrid.innerHTML = filtered.map((t) => {
-      const icon = shapeIcons[t.shape] || "⬛";
-      const statusColor = statusColors[t.status] || "#22c55e";
+      const isOccupied = t.status === "occupied" || t.status === "billed";
+      const icon = shapeIcons[t.shape] || "🪑";
+      const statusBadge = isOccupied
+        ? `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444;">OCCUPIED • ₱${Number(t.orderTotal || 0).toFixed(2)}</span>`
+        : `<span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid #22c55e;">AVAILABLE</span>`;
 
       return `
-        <div class="table-admin-card" style="background: var(--bg-card); border: var(--border); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; position: relative;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <div style="font-weight: 800; font-size: 1rem; color: var(--text); display: flex; align-items: center; gap: 6px;">
-                <span>${icon}</span>
-                <span>${t.name}</span>
-              </div>
-              <small style="color: var(--text-muted); font-size: 0.72rem;">${t.section} • ${t.seats} Seats</small>
+        <div class="sync-settings-card" style="padding: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-weight: 800; font-size: 1rem;">${icon} ${t.name}</span>
+              ${statusBadge}
             </div>
-            <span class="badge" style="background: ${statusColor}22; color: ${statusColor}; border: 1px solid ${statusColor}; font-size: 0.68rem; text-transform: uppercase; font-weight: 800;">
-              ${t.status}
-            </span>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">
+              Section: <b>${t.section}</b> • Seats: <b>${t.seats}</b>
+            </div>
+            ${t.notes ? `<div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 4px;">💡 ${t.notes}</div>` : ""}
           </div>
-
-          ${t.status === "occupied" ? `
-            <div style="font-size: 0.75rem; background: var(--bg-alt); padding: 6px 8px; border-radius: 4px; display: flex; justify-content: space-between;">
-              <span>Bill: <b>₱${Number(t.orderTotal || 0).toFixed(2)}</b></span>
-              <span>Guests: <b>${t.guestCount || 0}</b></span>
-            </div>
-          ` : ""}
-
-          <div style="display: flex; gap: 6px; margin-top: auto;">
-            <button type="button" class="btn-tool btn-sm btn-edit-table" data-id="${t.id}" style="flex: 1;">✏️ Edit</button>
-            ${t.status === "occupied" ? `
-              <button type="button" class="btn-tool btn-danger-outline btn-sm btn-clear-table" data-id="${t.id}" title="Clear Table">🧹 Clear</button>
-            ` : ""}
+          <div style="display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px;">
+            <button type="button" class="btn-tool btn-sm btn-edit-table" data-id="${t.id}">✏️ Edit</button>
+            ${isOccupied ? `<button type="button" class="btn-tool btn-sm btn-clear-table" data-id="${t.id}" style="color: #ef4444;">🧹 Free</button>` : ""}
           </div>
         </div>
       `;
@@ -705,7 +772,7 @@ export const AdminTables = {
     this.elements.adminTablesGrid.querySelectorAll(".btn-clear-table").forEach((btn) => {
       btn.onclick = async () => {
         const id = btn.dataset.id;
-        if (confirm("Clear table occupancy and set back to Available?")) {
+        if (confirm("Release and clear this table?")) {
           await DB.clearTable(id);
           await this.loadData();
         }
@@ -773,6 +840,7 @@ export const AdminTables = {
 
     if (table) {
       this.editingTableId = table.id;
+      if (this.elements.titleModalTableForm) this.elements.titleModalTableForm.textContent = `Edit ${table.name}`;
       if (this.elements.formTableId) this.elements.formTableId.value = table.id;
       if (this.elements.formTableName) this.elements.formTableName.value = table.name || "";
       if (this.elements.formTableSection) this.elements.formTableSection.value = table.section || "Main Dining";
@@ -783,6 +851,7 @@ export const AdminTables = {
     } else {
       this.editingTableId = null;
       const nextNum = this.tables.length + 1;
+      if (this.elements.titleModalTableForm) this.elements.titleModalTableForm.textContent = "Add Table / Element";
       if (this.elements.formTableId) this.elements.formTableId.value = "";
       if (this.elements.formTableName) this.elements.formTableName.value = `Table ${nextNum}`;
       if (this.elements.formTableSeats) this.elements.formTableSeats.value = 4;
@@ -826,6 +895,10 @@ export const AdminTables = {
         payload.activeOrderItems = existing.activeOrderItems;
         payload.seatedAt = existing.seatedAt;
       }
+    } else {
+      payload.posX = 40 + ((this.tables.length % 5) * 40);
+      payload.posY = 40 + ((this.tables.length % 5) * 35);
+      payload.status = "available";
     }
 
     await DB.saveTable(payload);
@@ -858,41 +931,41 @@ export const AdminTables = {
       ? this.settings.sections
       : ["Main Dining"];
 
-    if (this.elements.pickerSectionsBar) {
-      this.elements.pickerSectionsBar.innerHTML = `
-        <button type="button" class="btn-tool btn-sm btn-picker-sec ${this.pickerSection === 'all' ? 'active' : ''}" data-sec="all">
-          All Areas (${this.tables.length})
+    if (!this.elements.pickerSectionsBar) return;
+    this.elements.pickerSectionsBar.innerHTML = `
+      <button type="button" class="btn-tool btn-sm ${this.pickerSection === 'all' ? 'active' : ''}" data-section="all">
+        All Sections (${this.tables.length})
+      </button>
+      ${sections.map((s) => `
+        <button type="button" class="btn-tool btn-sm ${this.pickerSection === s ? 'active' : ''}" data-section="${s}">
+          ${s} (${this.tables.filter((t) => t.section === s).length})
         </button>
-        ${sections.map((s) => `
-          <button type="button" class="btn-tool btn-sm btn-picker-sec ${this.pickerSection === s ? 'active' : ''}" data-sec="${s}">
-            ${s}
-          </button>
-        `).join("")}
-      `;
+      `).join("")}
+    `;
 
-      this.elements.pickerSectionsBar.querySelectorAll(".btn-picker-sec").forEach((btn) => {
-        btn.onclick = () => {
-          this.pickerSection = btn.dataset.sec;
-          this.renderPickerSectionsBar();
-          if (this.cashierViewMode === "canvas") {
-            this.renderCashierCanvas();
-          } else {
-            this.renderPickerGrid();
-          }
-        };
-      });
-    }
+    this.elements.pickerSectionsBar.querySelectorAll("button").forEach((btn) => {
+      btn.onclick = () => {
+        this.pickerSection = btn.dataset.section;
+        this.elements.pickerSectionsBar.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        if (this.cashierViewMode === "canvas") {
+          this.renderCashierCanvas();
+        } else {
+          this.renderPickerGrid();
+        }
+      };
+    });
   },
 
   /**
-   * Renders the interactive 2D Visual Floor Map in Cashier Picker
+   * Renders cashier interactive floor map
    */
   renderCashierCanvas() {
     if (!this.elements.cashierFloorCanvas) return;
     this.elements.cashierFloorCanvas.innerHTML = "";
 
     let filtered = this.tables;
-    if (this.pickerSection !== "all") {
+    if (this.pickerSection && this.pickerSection !== "all") {
       filtered = this.tables.filter((t) => t.section === this.pickerSection);
     }
 
@@ -913,48 +986,53 @@ export const AdminTables = {
       token.style.top = `${posY}px`;
 
       if (table.shape === "wall") {
+        token.innerHTML = `<span style="font-weight: 700; font-size: 0.7rem; color: #94a3b8;">🧱 ${table.name}</span>`;
         token.style.cursor = "default";
-        token.innerHTML = `<span style="font-weight: 700; font-size: 0.65rem;">🧱 ${table.name}</span>`;
       } else if (table.shape === "counter") {
-        token.innerHTML = `
-          <div style="font-size: 0.8rem; font-weight: 800; display: flex; align-items: center; gap: 4px;">
-            <span>☕</span> <span>${table.name}</span>
-          </div>
-          <span class="badge" style="font-size: 0.62rem; padding: 1px 4px; background: ${isCurrent ? 'var(--accent)' : isOccupied ? '#ef4444' : '#22c55e'}; color: #fff;">
-            ${isCurrent ? "ACTIVE" : isOccupied ? `₱${Number(table.orderTotal || 0).toFixed(0)}` : "AVAILABLE"}
-          </span>
-        `;
-      } else {
-        const badgeBg = isCurrent ? "var(--accent)" : isOccupied ? "#ef4444" : "#22c55e";
-        const badgeText = isCurrent ? "ACTIVE" : isOccupied ? `₱${Number(table.orderTotal || 0).toFixed(0)}` : "AVAILABLE";
+        const badge = isCurrent 
+          ? `<span class="badge" style="background: var(--accent); color: #fff; font-size: 0.62rem;">ACTIVE</span>`
+          : isOccupied 
+            ? `<span class="badge" style="background: #ef4444; color: #fff; font-size: 0.62rem;">₱${Number(table.orderTotal || 0).toFixed(0)}</span>`
+            : `<span class="badge" style="background: #22c55e; color: #fff; font-size: 0.62rem;">${table.seats} 🪑</span>`;
 
         token.innerHTML = `
-          <b style="font-size: 0.88rem; line-height: 1.1;">${table.name}</b>
-          <span class="badge" style="background: ${badgeBg}; color: #ffffff; font-size: 0.64rem; margin-top: 3px; padding: 2px 6px;">
-            ${badgeText}
-          </span>
+          <div style="font-size: 0.82rem; font-weight: 800; display: flex; align-items: center; gap: 4px;">
+            <span>☕</span> <span>${table.name}</span>
+          </div>
+          ${badge}
+        `;
+      } else {
+        const badge = isCurrent
+          ? `<span class="badge" style="background: var(--accent); color: #fff; font-size: 0.62rem; padding: 2px 6px;">CURRENT</span>`
+          : isOccupied
+            ? `<span class="badge" style="background: #ef4444; color: #fff; font-size: 0.65rem; padding: 2px 6px;">₱${Number(table.orderTotal || 0).toFixed(0)}</span>`
+            : `<span class="badge" style="background: #22c55e; color: #fff; font-size: 0.62rem; padding: 2px 6px;">${table.seats} 🪑 Free</span>`;
+
+        token.innerHTML = `
+          <b style="font-size: 0.92rem; line-height: 1.1;">${table.name}</b>
+          ${badge}
         `;
       }
 
-      // Cashier Click Behavior
-      token.onclick = () => {
-        if (table.shape === "wall") return;
-        this.handleCashierTableClick(table);
-      };
+      if (table.shape !== "wall") {
+        token.onclick = () => {
+          this.handleCashierTableClick(table);
+        };
+      }
 
       this.elements.cashierFloorCanvas.appendChild(token);
     });
   },
 
   /**
-   * Alternative Grid View for Cashier Picker
+   * Renders table grid cards view for Cashier
    */
   renderPickerGrid() {
     if (!this.elements.pickerTablesGrid) return;
 
-    let filtered = this.tables;
-    if (this.pickerSection !== "all") {
-      filtered = this.tables.filter((t) => t.section === this.pickerSection);
+    let filtered = this.tables.filter((t) => t.shape !== "wall");
+    if (this.pickerSection && this.pickerSection !== "all") {
+      filtered = filtered.filter((t) => t.section === this.pickerSection);
     }
 
     const activeTicket = Cart.getActiveTicket();
@@ -967,21 +1045,17 @@ export const AdminTables = {
       const shapeStyle = t.shape === "round" ? "border-radius: 50%;" : t.shape === "rectangle" ? "border-radius: 8px; aspect-ratio: 1.6/1;" : "border-radius: 10px; aspect-ratio: 1/1;";
 
       return `
-        <div 
-          class="cashier-table-tile ${isCurrent ? 'active' : ''}" 
-          data-id="${t.id}"
-          style="background: var(--bg-card); border: 2px solid ${statusBg}; ${shapeStyle} padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; text-align: center; transition: transform 0.15s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.2);"
-        >
-          <b style="font-size: 0.95rem; color: var(--text);">${t.name}</b>
-          <small style="font-size: 0.68rem; color: var(--text-muted);">${t.seats} Seats</small>
-          <span class="badge" style="background: ${statusBg}; color: #ffffff; font-size: 0.64rem; margin-top: 4px; padding: 2px 6px;">
-            ${isCurrent ? "ACTIVE ORDER" : isOccupied ? `₱${Number(t.orderTotal || 0).toFixed(0)}` : "AVAILABLE"}
+        <div class="picker-table-tile ${isCurrent ? 'selected' : ''}" data-id="${t.id}" style="${shapeStyle} border: 2px solid ${statusBg}; background: var(--bg-card); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; padding: 8px; text-align: center; position: relative;">
+          <b style="font-size: 0.95rem;">${t.name}</b>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">${t.seats} Seats</span>
+          <span class="badge" style="margin-top: 4px; font-size: 0.65rem; background: ${statusBg}; color: #ffffff;">
+            ${isCurrent ? "ACTIVE" : isOccupied ? `₱${Number(t.orderTotal || 0).toFixed(0)}` : "FREE"}
           </span>
         </div>
       `;
     }).join("");
 
-    this.elements.pickerTablesGrid.querySelectorAll(".cashier-table-tile").forEach((tile) => {
+    this.elements.pickerTablesGrid.querySelectorAll(".picker-table-tile").forEach((tile) => {
       tile.onclick = () => {
         const tableId = tile.dataset.id;
         const table = this.tables.find((t) => t.id === tableId);
@@ -991,9 +1065,9 @@ export const AdminTables = {
   },
 
   /**
-   * Cashier Table Click Logic:
-   * - If Available: assigns active ticket / seats order
-   * - If Occupied: opens Table Order Details & Bill Inspector Modal
+   * Handles cashier selection of a table
+   * If available: assigns table to active ticket
+   * If occupied: opens order inspection details
    */
   async handleCashierTableClick(table) {
     const activeTicket = Cart.getActiveTicket();
@@ -1010,13 +1084,11 @@ export const AdminTables = {
     activeTicket.tableName = table.name;
     activeTicket.tableSection = table.section;
 
-    const cartCalc = Cart.calculate();
-    const hasItems = activeTicket.items && activeTicket.items.length > 0;
-
-    await DB.setTableStatus(table.id, hasItems ? "occupied" : "available", {
+    await DB.setTableStatus(table.id, "occupied", {
       activeOrderId: activeTicket.id,
-      orderTotal: cartCalc.total || 0,
-      activeOrderItems: activeTicket.items || [],
+      orderTotal: Cart.calculate().total,
+      activeOrderItems: Cart.calculate().items,
+      guestCount: table.seats || 2,
       seatedAt: Date.now()
     });
 
@@ -1088,5 +1160,3 @@ export const AdminTables = {
     this.elements.modalTableOrderDetails.showModal();
   }
 };
-
-// REMARK: ADMIN_TABLES_DINING_FLOOR_PLAN_MODULE_COMPLETE

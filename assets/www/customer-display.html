@@ -1091,10 +1091,21 @@
       // 2. Direct IndexedDB query (retrieves full high-res photos even if localStorage hit quota)
       try {
         const req = indexedDB.open("LokalexPOSDB");
+        req.onblocked = () => {};
+        req.onerror = () => {};
         req.onsuccess = (e) => {
           const db = e.target.result;
+          // CRITICAL: Close connection immediately on versionchange so main POS migrations are never blocked!
+          db.onversionchange = () => {
+            db.close();
+          };
+
           if (db.objectStoreNames.contains("settings")) {
             const tx = db.transaction("settings", "readonly");
+            tx.oncomplete = () => db.close();
+            tx.onerror = () => db.close();
+            tx.onabort = () => db.close();
+
             const store = tx.objectStore("settings");
             const getDisplay = store.get("display_settings");
             getDisplay.onsuccess = () => {
@@ -1114,6 +1125,9 @@
                 }
               }
             };
+          } else {
+            // Close immediately if settings store does not exist yet on fresh install
+            db.close();
           }
         };
       } catch (err) {

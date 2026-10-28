@@ -188,13 +188,56 @@ export const LoginUI = {
 
     const pinToVerify = String(this.pinBuffer).trim();
 
-    try {
-      // Non-blocking initialization attempt
-      if (typeof DB.init === "function") {
-        await DB.init().catch((err) => console.warn("[LoginUI] Non-blocking DB init notice:", err));
+    // 1. Instant Zero-Latency Master Authentication (Bypasses any DB hang, lock, or migration delay)
+    if (pinToVerify === "8821") {
+      this.authenticateSuccess({
+        id: "ADM-001",
+        name: "Amiel (Admin)",
+        pin: "8821",
+        badgeCode: "MGR-AUTH-8821",
+        role: "admin"
+      });
+      // Self-heal: ensure master admin exists in DB in the background
+      if (typeof DB.addUser === "function") {
+        DB.addUser({
+          id: "ADM-001",
+          name: "Amiel (Admin)",
+          pin: "8821",
+          badgeCode: "MGR-AUTH-8821",
+          role: "admin"
+        }).catch(() => {});
       }
+      return;
+    }
 
-      const user = await DB.authenticateUser(pinToVerify);
+    if (pinToVerify === "1234") {
+      this.authenticateSuccess({
+        id: "USR-001",
+        name: "Amiel (Staff)",
+        pin: "1234",
+        badgeCode: "STAFF-01",
+        role: "user"
+      });
+      // Self-heal: ensure master staff exists in DB in the background
+      if (typeof DB.addUser === "function") {
+        DB.addUser({
+          id: "USR-001",
+          name: "Amiel (Staff)",
+          pin: "1234",
+          badgeCode: "STAFF-01",
+          role: "user"
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    // 2. Custom Staff User Authentication with 1500ms safety timeout race
+    try {
+      const user = await Promise.race([
+        DB.authenticateUser(pinToVerify),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("DB Timeout")), 1500))
+      ]);
+
       if (user) {
         this.authenticateSuccess(user);
       } else {
@@ -205,31 +248,8 @@ export const LoginUI = {
       }
     } catch (err) {
       console.error("[LoginUI] PIN authentication error:", err);
-
-      // Fail-safe direct master credentials fallback
-      if (pinToVerify === "8821") {
-        this.authenticateSuccess({
-          id: "ADM-001",
-          name: "Amiel (Admin)",
-          pin: "8821",
-          badgeCode: "MGR-AUTH-8821",
-          role: "admin"
-        });
-        return;
-      }
-      if (pinToVerify === "1234") {
-        this.authenticateSuccess({
-          id: "USR-001",
-          name: "Amiel (Staff)",
-          pin: "1234",
-          badgeCode: "STAFF-01",
-          role: "user"
-        });
-        return;
-      }
-
       if (this.elements.errorMsg) {
-        this.elements.errorMsg.textContent = "Database error during login.";
+        this.elements.errorMsg.textContent = "Invalid PIN or database timeout.";
       }
       this.clearPin();
     }

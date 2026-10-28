@@ -868,6 +868,11 @@ ${buzzerCallout}
     }
 
     try {
+      const activeTicket = Cart.getActiveTicket();
+      const tableId = bill.tableId || (activeTicket ? activeTicket.tableId : null);
+      const tableName = bill.tableName || (activeTicket ? activeTicket.tableName : null);
+      const tableSection = bill.tableSection || (activeTicket ? activeTicket.tableSection : null);
+
       // 2. Commit transaction to local IndexedDB
       const savedOrder = await DB.saveOrder({
         orderNumber,
@@ -881,7 +886,10 @@ ${buzzerCallout}
         amountTendered: tendered,
         changeAmount: change,
         pagerNumber,
-        voucher
+        voucher,
+        tableId,
+        tableName,
+        tableSection
       });
 
       // 3. Immediately refresh inventory UI & active cart ticket
@@ -896,6 +904,9 @@ ${buzzerCallout}
         changeAmount: change,
         pagerNumber,
         voucher,
+        tableId,
+        tableName,
+        tableSection,
         karinderyaMode: isCompactReceipt,
         karinderyaVoucherOnly: isVoucherOnly
       };
@@ -904,10 +915,12 @@ ${buzzerCallout}
       (async () => {
         try {
           const enabledPrinters = await DB.getEnabledPrinters();
-          await Promise.allSettled([
-            Printer.broadcastReceipt(enabledPrinters, receiptTicket),
-            Printer.kickDrawer(enabledPrinters)
-          ]);
+          const shouldKickDrawer = store.autoOpenDrawer !== false;
+          const tasks = [Printer.broadcastReceipt(enabledPrinters, receiptTicket)];
+          if (shouldKickDrawer) {
+            tasks.push(Printer.kickDrawer(enabledPrinters));
+          }
+          await Promise.allSettled(tasks);
         } catch (printErr) {
           console.warn("[Background Print Dispatch Warning]:", printErr);
         }
@@ -971,6 +984,19 @@ ${buzzerCallout}
         Cart.closeTicket(activeTicketId);
       } else {
         Cart.clear();
+      }
+
+      // Auto-clear table occupancy if enabled
+      if (tableId) {
+        try {
+          const tableSettings = await DB.getTableSettings();
+          if (tableSettings.autoClearOnPayment !== false) {
+            await DB.clearTable(tableId);
+            Bus.emit("tables:updated");
+          }
+        } catch (tblErr) {
+          console.warn("[Table Auto-Clear Notice]:", tblErr);
+        }
       }
 
       setTimeout(() => {
@@ -1226,6 +1252,11 @@ ${buzzerCallout}
     }
 
     try {
+      const activeTicket = Cart.getActiveTicket();
+      const tableId = bill.tableId || (activeTicket ? activeTicket.tableId : null);
+      const tableName = bill.tableName || (activeTicket ? activeTicket.tableName : null);
+      const tableSection = bill.tableSection || (activeTicket ? activeTicket.tableSection : null);
+
       // 2. Commit transaction to local IndexedDB
       const savedOrder = await DB.saveOrder({
         orderNumber,
@@ -1242,7 +1273,10 @@ ${buzzerCallout}
         gcashAmountPaid: amountPaid,
         gcashPaymentDate: paymentDate || new Date().toISOString(),
         pagerNumber,
-        voucher
+        voucher,
+        tableId,
+        tableName,
+        tableSection
       });
 
       // 3. Immediately refresh inventory UI & active cart ticket
@@ -1260,6 +1294,9 @@ ${buzzerCallout}
         gcashPaymentDate: paymentDate || new Date().toISOString(),
         pagerNumber,
         voucher,
+        tableId,
+        tableName,
+        tableSection,
         karinderyaMode: isCompactReceipt,
         karinderyaVoucherOnly: isVoucherOnly
       };
@@ -1334,6 +1371,19 @@ ${buzzerCallout}
         Cart.closeTicket(activeTicketId);
       } else {
         Cart.clear();
+      }
+
+      // Auto-clear table occupancy if enabled
+      if (tableId) {
+        try {
+          const tableSettings = await DB.getTableSettings();
+          if (tableSettings.autoClearOnPayment !== false) {
+            await DB.clearTable(tableId);
+            Bus.emit("tables:updated");
+          }
+        } catch (tblErr) {
+          console.warn("[Table Auto-Clear Notice]:", tblErr);
+        }
       }
 
       setTimeout(() => {

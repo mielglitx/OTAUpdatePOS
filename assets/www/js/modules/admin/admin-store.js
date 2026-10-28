@@ -35,6 +35,7 @@ export const AdminStore = {
       storeTaglineInput: document.getElementById("store-tagline-input"),
       storeLogoInput: document.getElementById("store-logo-input"),
       storeLogoPreview: document.getElementById("store-logo-preview"),
+      storeAutoOpenDrawerCheckbox: document.getElementById("store-auto-open-drawer-checkbox"),
       storeUsePagerCheckbox: document.getElementById("store-use-pager-checkbox"),
       storePagerCountWrap: document.getElementById("store-pager-count-wrap"),
       storePagerCountInput: document.getElementById("store-pager-count-input"),
@@ -217,6 +218,8 @@ export const AdminStore = {
         const karinderyaSuppressPager = this.elements.cbKarinderyaSuppressPager ? Boolean(this.elements.cbKarinderyaSuppressPager.checked) : true;
         const karinderyaVoucherOnly = this.elements.cbKarinderyaVoucherOnly ? Boolean(this.elements.cbKarinderyaVoucherOnly.checked) : false;
 
+        const autoOpenDrawer = this.elements.storeAutoOpenDrawerCheckbox ? this.elements.storeAutoOpenDrawerCheckbox.checked : true;
+
         const payload = {
           storeName,
           companyName,
@@ -228,6 +231,7 @@ export const AdminStore = {
           gcashNumber,
           gcashQrBase64,
           gcashQrPayload,
+          autoOpenDrawer,
           useNumberPager,
           pagerCount,
           karinderyaMode,
@@ -257,6 +261,10 @@ export const AdminStore = {
     if (this.elements.storeAddressInput) this.elements.storeAddressInput.value = settings.address || "";
     if (this.elements.storeContactInput) this.elements.storeContactInput.value = settings.contactNumber || "";
     if (this.elements.storeTaglineInput) this.elements.storeTaglineInput.value = settings.tagline || "";
+
+    if (this.elements.storeAutoOpenDrawerCheckbox) {
+      this.elements.storeAutoOpenDrawerCheckbox.checked = settings.autoOpenDrawer !== false;
+    }
 
     const isPagerEnabled = Boolean(settings.useNumberPager);
     if (this.elements.storeUsePagerCheckbox) {

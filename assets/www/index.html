@@ -110,6 +110,7 @@
         <button type="button" class="btn-admin-tab" data-tab="users" id="tab-btn-users">👥 Staff & Users</button>
         <button type="button" class="btn-admin-tab" data-tab="store" id="tab-btn-store">🏪 Store Profile</button>
         <button type="button" class="btn-admin-tab" data-tab="display" id="tab-btn-display">🖥️ Customer Display</button>
+        <button type="button" class="btn-admin-tab" data-tab="tables" id="tab-btn-tables">🪑 Table Layout</button>
         <button type="button" class="btn-admin-tab" data-tab="sync" id="tab-btn-sync">☁️ Cloud Sync</button>
         <button type="button" class="btn-admin-tab" data-tab="hotspot" id="tab-btn-hotspot">📶 MikroTik Hotspot</button>
         <button type="button" class="btn-admin-tab" data-tab="backup" id="tab-btn-backup">💾 Backup & Restore</button>
@@ -400,11 +401,19 @@
             <input type="text" id="store-tagline-input" placeholder="e.g., Fast, Fresh & Local Delivery" />
           </div>
 
-          <div class="form-row-2 form-row-center">
+          <div class="form-group">
+            <label for="store-default-float-input">Default Shift Initial Cash Float (₱):</label>
+            <input type="number" step="0.01" id="store-default-float-input" value="1000.00" placeholder="1000.00" style="max-width: 320px;" />
+            <small class="printer-hint-text">Auto-fills when cashiers start their work shift on this terminal.</small>
+          </div>
+
+          <div class="form-row-2 form-row-center" style="margin-top: 10px;">
             <div class="form-group">
-              <label for="store-default-float-input">Default Shift Initial Cash Float (₱):</label>
-              <input type="number" step="0.01" id="store-default-float-input" value="1000.00" placeholder="1000.00" />
-              <small class="printer-hint-text">Auto-fills when cashiers start their work shift on this terminal.</small>
+              <label class="checkbox-label checkbox-label-strong">
+                <input type="checkbox" id="store-auto-open-drawer-checkbox" class="input-checkbox-lg" checked />
+                <span>Automatically Open Cash Drawer</span>
+              </label>
+              <small class="printer-hint-text">Automatically pops open the connected cash drawer after completing a transaction. Uncheck to keep drawer closed.</small>
             </div>
             <div class="form-group">
               <label class="checkbox-label checkbox-label-strong">
@@ -734,7 +743,66 @@
               </div>
             </div>
 
-            <!-- 5. Modular Component Order & Priority -->
+            <!-- 5. Photo Presentation (Up to 20 Photos, Lineup or Random) -->
+            <div class="sync-settings-card">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 class="settings-subtitle">📸 Customer Screen Photo Presentation</h4>
+                <span id="cd-photo-count-badge" class="badge badge-admin">0 / 20 Photos</span>
+              </div>
+              <p class="printer-hint-text">
+                Upload up to 20 promotional photos, menu items, or specials. Photos will display on the 2nd screen sequentially by lineup or randomly shuffled.
+              </p>
+
+              <div class="form-row-2 form-row-center" style="margin-top: 8px;">
+                <label class="checkbox-label checkbox-label-strong">
+                  <input type="checkbox" id="cb-cd-photo-enabled" checked class="input-checkbox-md" />
+                  <span>Enable Photo Presentation Slideshow</span>
+                </label>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="select-cd-photo-mode">Playback Mode:</label>
+                  <select id="select-cd-photo-mode" class="form-select">
+                    <option value="lineup" selected>Lineup (Order #1 to #20)</option>
+                    <option value="random">Random Shuffle</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-2" style="margin-top: 8px;">
+                <div class="form-group">
+                  <label for="select-cd-photo-interval">Slide Duration / Interval:</label>
+                  <select id="select-cd-photo-interval" class="form-select">
+                    <option value="3">3 Seconds</option>
+                    <option value="5" selected>5 Seconds (Recommended)</option>
+                    <option value="8">8 Seconds</option>
+                    <option value="10">10 Seconds</option>
+                    <option value="15">15 Seconds</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="select-cd-photo-fit">Image Fit Mode:</label>
+                  <select id="select-cd-photo-fit" class="form-select">
+                    <option value="cover" selected>Cover (Fill Screen / Cropped)</option>
+                    <option value="contain">Contain (Full Image / Letterbox)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Upload & Controls Row -->
+              <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px;">
+                <label class="btn-tool" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" for="input-cd-photo-upload">
+                  <span>➕ Add Photos (Max 20)</span>
+                  <input type="file" id="input-cd-photo-upload" accept="image/*" multiple style="display: none;" />
+                </label>
+                <button type="button" class="btn-danger-outline btn-sm" id="btn-cd-clear-all-photos">🗑️ Clear All Photos</button>
+              </div>
+
+              <!-- Lineup Gallery Grid -->
+              <div id="cd-photos-roster" style="display: flex; flex-direction: column; gap: 6px; margin-top: 10px; max-height: 320px; overflow-y: auto; padding-right: 4px;">
+                <!-- Populated dynamically: photo thumbnail, order badge, caption input, up/down, delete -->
+              </div>
+            </div>
+
+            <!-- 6. Modular Component Order & Priority -->
             <div class="sync-settings-card">
               <h4 class="settings-subtitle">🧩 Modular Component Priority Ordering</h4>
               <p class="printer-hint-text">Use the up/down arrows to adjust the visual flow of components on the second screen.</p>
@@ -770,6 +838,61 @@
           </div>
 
         </div>
+      </section>
+
+      <!-- Tab: Dining & Floor Plan Table Layout (Cafe, Restaurant, Canteen) -->
+      <section class="admin-tab-pane" id="pane-tables">
+        <div class="admin-table-controls">
+          <div>
+            <h3>🪑 Dining & Floor Plan Table Layout</h3>
+            <p class="printer-hint-text">
+              Configure table setups for cafes, restaurants, or canteens. Cashiers can assign tickets to tables, track dining occupancy, and print table names on receipts.
+            </p>
+          </div>
+          <div class="admin-actions-group">
+            <button type="button" class="btn-tool" id="btn-admin-add-section">➕ Add Dining Section</button>
+            <button type="button" class="btn-pay btn-cash" id="btn-admin-add-table">➕ Add New Table</button>
+          </div>
+        </div>
+
+        <!-- Master Enable, Auto-Clear, and Preset Templates -->
+        <div class="sync-settings-card" style="margin-bottom: 12px;">
+          <div class="form-row-3 form-row-center">
+            <label class="checkbox-label checkbox-label-strong">
+              <input type="checkbox" id="cb-tables-enabled" checked class="input-checkbox-md" />
+              <span>Enable Table Layout in Cashier Register</span>
+            </label>
+            <label class="checkbox-label checkbox-label-strong">
+              <input type="checkbox" id="cb-tables-auto-clear" checked class="input-checkbox-md" />
+              <span>Auto-Clear Table on Checkout Payment</span>
+            </label>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <select id="select-table-layout-preset" class="form-select" style="min-width: 140px;">
+                <option value="cafe">☕ Cafe Preset (8 Tables)</option>
+                <option value="restaurant" selected>🍽️ Restaurant Preset (9 Tables)</option>
+                <option value="canteen">🏫 Canteen / Benches (8 Tables)</option>
+              </select>
+              <button type="button" class="btn-tool btn-sm" id="btn-apply-table-preset">Apply Preset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Filter & Live Metrics Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="select-admin-table-section" class="label-bold-sm">Dining Section:</label>
+            <select id="select-admin-table-section" class="form-select" style="min-width: 160px;"></select>
+            <div id="admin-sections-tags" style="display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px;"></div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <span id="stat-total-tables" class="badge" style="background: var(--bg-alt); border: var(--border); color: var(--text);">0 Tables</span>
+            <span id="stat-available-tables" class="badge" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid #22c55e;">0 Available</span>
+            <span id="stat-occupied-tables" class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444;">0 Occupied</span>
+          </div>
+        </div>
+
+        <!-- Admin Table Grid Cards -->
+        <div id="admin-tables-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;"></div>
       </section>
 
       <!-- Tab 8: Cloud Sync & Remote Database Settings -->
@@ -1150,6 +1273,20 @@
                 </div>
               </label>
 
+              <!-- 3.1 Dining & Floor Plan Table Layout -->
+              <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
+                <input type="checkbox" id="cb-export-tables" class="backup-export-cb" checked style="width: 18px; height: 18px; accent-color: #0284c7; margin-top: 2px;" />
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 0.86rem;">🪑 Table Layout & Sections</span>
+                    <span class="badge" id="stat-backup-tables-count">0 tables</span>
+                  </div>
+                  <span style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.35; display: block; margin-top: 2px;">
+                    Dining sections, table numbers, seat capacities, shapes, presets (Cafe, Restaurant, Canteen).
+                  </span>
+                </div>
+              </label>
+
               <!-- 4. Cloud Sync Credentials -->
               <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-alt, #f8fafc); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
                 <input type="checkbox" id="cb-export-sync" class="backup-export-cb" checked style="width: 18px; height: 18px; accent-color: #0284c7; margin-top: 2px;" />
@@ -1398,6 +1535,7 @@
           <input type="checkbox" id="cb-karinderya-mode" class="input-checkbox-md" />
           <span style="font-weight: 800; color: #f59e0b; font-size: 0.8rem;">⚡ Fast Mode</span>
         </label>
+        <button type="button" class="btn-tool btn-tables" id="btn-toggle-tables" title="Select or manage Dining Table">🪑 Table</button>
         <button type="button" class="btn-tool btn-customer-display" id="btn-customer-display" title="Open Customer Order Display on 2nd Monitor">🖥 Display</button>
         <button type="button" class="btn-tool btn-admin hidden" id="btn-open-admin">⚙ Admin</button>
         <button type="button" class="btn-tool" id="btn-printer-dialog">🖨 Printers</button>
@@ -1451,7 +1589,10 @@
 
         <div class="ticket-header">
           <div>
-            <h3>Current Ticket</h3>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <h3>Current Ticket</h3>
+              <span id="ticket-table-badge" class="badge" style="background: rgba(2, 132, 199, 0.15); color: #0284c7; border: 1px solid #0284c7; font-weight: 800; cursor: pointer; display: none;" title="Assigned Table - Click to Change">🪑 Assign Table</span>
+            </div>
             <small id="ticket-id">Order 1</small>
           </div>
           <div class="ticket-header-actions">
@@ -2585,6 +2726,81 @@
 
       <div class="modal-actions modal-actions-center modal-actions-mt">
         <button type="button" class="btn-pay btn-cash btn-block" id="btn-close-change-result">Next Transaction (Enter / OK)</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ============================================================= -->
+  <!-- MODAL: CASHIER INTERACTIVE FLOOR PLAN / TABLE SELECTOR        -->
+  <!-- ============================================================= -->
+  <dialog class="pos-modal" id="modal-table-picker" style="max-width: 680px; width: 92%;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem;">🪑</span>
+          <h3 class="modal-title">Select Dining Table</h3>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-table-picker">✖ Close</button>
+      </div>
+
+      <!-- Dining Section Filter Bar -->
+      <div id="picker-sections-bar" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;"></div>
+
+      <!-- Floor Plan Grid of Tables -->
+      <div id="picker-tables-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; max-height: 52vh; overflow-y: auto; padding: 4px;"></div>
+
+      <div class="modal-actions" style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+        <button type="button" class="btn-danger-outline btn-sm" id="btn-clear-ticket-table">🚶 Clear Table (Takeout / Counter)</button>
+        <span style="font-size: 0.74rem; color: var(--text-muted);">🟢 Available &nbsp; 🔴 Occupied &nbsp; 🔵 Selected</span>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ============================================================= -->
+  <!-- MODAL: ADMIN TABLE ADD / EDIT FORM                            -->
+  <!-- ============================================================= -->
+  <dialog class="pos-modal" id="modal-table-form" style="max-width: 440px; width: 90%;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="title-modal-table-form">Configure Table</h3>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-cancel-table-form">✖</button>
+      </div>
+
+      <input type="hidden" id="form-table-id" />
+
+      <div class="form-group" style="margin-top: 8px;">
+        <label for="form-table-name">Table Name / Number:</label>
+        <input type="text" id="form-table-name" placeholder="e.g. Table 1, Booth A, Bar 2" required />
+      </div>
+
+      <div class="form-group" style="margin-top: 8px;">
+        <label for="form-table-section">Dining Section / Area:</label>
+        <select id="form-table-section" class="form-select"></select>
+      </div>
+
+      <div class="form-row-2" style="margin-top: 8px;">
+        <div class="form-group">
+          <label for="form-table-seats">Seat Capacity:</label>
+          <input type="number" id="form-table-seats" min="1" max="50" value="4" />
+        </div>
+        <div class="form-group">
+          <label for="form-table-shape">Table Shape:</label>
+          <select id="form-table-shape" class="form-select">
+            <option value="square" selected>⬛ Square</option>
+            <option value="round">⚪ Round</option>
+            <option value="rectangle">▬ Rectangle / Bench</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 8px;">
+        <label for="form-table-notes">Notes / Location Hint (Optional):</label>
+        <input type="text" id="form-table-notes" placeholder="e.g. Window side, Near entrance" />
+      </div>
+
+      <div class="modal-actions" style="margin-top: 14px; display: flex; justify-content: space-between;">
+        <button type="button" class="btn-danger-outline btn-sm hidden" id="btn-delete-table-form">🗑️ Delete Table</button>
+        <button type="button" class="btn-pay btn-cash" id="btn-save-table-form" style="margin-left: auto;">💾 Save Table</button>
       </div>
     </div>
   </dialog>

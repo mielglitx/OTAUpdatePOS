@@ -70,12 +70,51 @@ class MainActivity : FlutterActivity() {
     private val ACTION_USB_PERMISSION = "com.example.pos_app.USB_PERMISSION"
     private var currentPresentation: CustomerPresentation? = null
 
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) {
+            android.util.Log.d("POS_DISPLAY", "Display added: $displayId")
+            if (displayId != Display.DEFAULT_DISPLAY) {
+                autoLaunchCustomerPresentation()
+            }
+        }
+
+        override fun onDisplayChanged(displayId: Int) {
+            android.util.Log.d("POS_DISPLAY", "Display changed: $displayId")
+            if (displayId != Display.DEFAULT_DISPLAY && currentPresentation == null) {
+                autoLaunchCustomerPresentation()
+            }
+        }
+
+        override fun onDisplayRemoved(displayId: Int) {
+            android.util.Log.d("POS_DISPLAY", "Display removed: $displayId")
+            if (currentPresentation?.display?.displayId == displayId) {
+                hideCustomerPresentation()
+            }
+        }
+    }
+
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_USB_PERMISSION) {
                 val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
                 android.util.Log.d("POS_USB", "USB permission broadcast received. Granted: $granted")
             }
+        }
+    }
+
+    private fun autoLaunchCustomerPresentation(url: String = "http://localhost:8080/customer-display.html") {
+        try {
+            val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+            val secondary = dm.displays.firstOrNull { it.displayId != Display.DEFAULT_DISPLAY }
+            if (secondary != null && currentPresentation == null) {
+                runOnUiThread {
+                    currentPresentation = CustomerPresentation(this, secondary, url)
+                    currentPresentation?.show()
+                    android.util.Log.d("POS_DISPLAY", "Auto-mounted CustomerPresentation on display ${secondary.displayId} (${secondary.name})")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("POS_DISPLAY", "Auto presentation mount error: ${e.message}")
         }
     }
 
@@ -90,12 +129,33 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             android.util.Log.w("POS_USB", "Could not register USB receiver: ${e.message}")
         }
+
+        try {
+            val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+            dm.registerDisplayListener(displayListener, null)
+            autoLaunchCustomerPresentation()
+        } catch (e: Exception) {
+            android.util.Log.w("POS_DISPLAY", "Could not register DisplayListener: ${e.message}")
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        autoLaunchCustomerPresentation()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         try {
             unregisterReceiver(usbReceiver)
+        } catch (_: Exception) {}
+        try {
+            val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+            dm.unregisterDisplayListener(displayListener)
+        } catch (_: Exception) {}
+        try {
+            currentPresentation?.dismiss()
+            currentPresentation = null
         } catch (_: Exception) {}
     }
 
@@ -133,6 +193,10 @@ class MainActivity : FlutterActivity() {
                     "hideCustomerPresentation" -> {
                         val res = hideCustomerPresentation()
                         result.success(res)
+                    }
+                    "checkAutoMountPresentation" -> {
+                        autoLaunchCustomerPresentation()
+                        result.success(mapOf("ok" to true, "mounted" to (currentPresentation != null)))
                     }
                     "getDisplayList" -> {
                         val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager

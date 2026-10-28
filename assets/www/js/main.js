@@ -27,6 +27,7 @@ import {
   Session
 } from "./facade.js";
 import { AdminDisplay } from "./modules/admin/admin-display.js";
+import { AdminTables } from "./modules/admin/admin-tables.js";
 
 let isPrintingLogoutReport = false;
 
@@ -139,6 +140,36 @@ async function initApp() {
         btnCustomerDisplay.onclick = async () => {
           await AdminDisplay.pushLiveToSecondary();
         };
+      }
+
+      // Feature Rework: Auto-enable and auto-mount secondary customer presentation display on boot
+      // if Android hardware indicates dual-monitor / Sunmi sub-display connected
+      setTimeout(async () => {
+        try {
+          await AdminDisplay.pushLiveToSecondary({ silent: true });
+        } catch (_) {}
+      }, 1200);
+    }
+
+    // 8.1 Initialize Dining & Floor Plan Table Layout Sub-Module
+    if (AdminTables && typeof AdminTables.init === "function") {
+      await AdminTables.init();
+
+      // Bind Table Layout Admin Navigation Tab
+      const tabBtnTables = document.getElementById("tab-btn-tables");
+      if (tabBtnTables) {
+        tabBtnTables.addEventListener("click", async () => {
+          document.querySelectorAll(".btn-admin-tab").forEach((b) => b.classList.remove("active"));
+          tabBtnTables.classList.add("active");
+
+          document.querySelectorAll(".admin-tab-pane").forEach((p) => p.classList.remove("active"));
+          const paneTables = document.getElementById("pane-tables");
+          if (paneTables) {
+            paneTables.classList.add("active");
+          }
+
+          await AdminTables.loadData();
+        });
       }
     }
 

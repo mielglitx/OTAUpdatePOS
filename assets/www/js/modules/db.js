@@ -71,6 +71,10 @@ localDB.version(9).stores({
   orders: "++id, orderNumber, cashierId, shiftId, status, synced, timestamp"
 });
 
+localDB.version(10).stores({
+  tables: "id, name, section, status, activeOrderId"
+});
+
 export const DB = {
   instance: localDB,
   initPromise: null,
@@ -277,8 +281,42 @@ export const DB = {
           showTagline: true,
           customWelcome: "Welcome! Your order details will appear here as items are scanned.",
           customFooterNote: "Customer Display Terminal • Live Order Mirror",
-          componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"]
+          componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"],
+          photoPresentationEnabled: true,
+          photoDisplayMode: "lineup",
+          photoInterval: 5,
+          photoFitMode: "cover",
+          photoLayoutPlacement: "adaptive",
+          photos: []
         });
+      }
+
+      // 8. Seed Default Table Layout Settings & Tables if empty
+      const tableSetting = await localDB.settings.get("table_settings");
+      if (!tableSetting) {
+        await localDB.settings.put({
+          key: "table_settings",
+          enabled: true,
+          layoutType: "restaurant",
+          sections: ["Main Dining", "Patio / Outdoor", "VIP / Function"],
+          autoClearOnPayment: true,
+          requireTableOnDineIn: false
+        });
+      }
+
+      const tablesCount = await localDB.tables.count();
+      if (tablesCount === 0) {
+        await localDB.tables.bulkPut([
+          { id: "TBL-01", name: "Table 1", section: "Main Dining", seats: 2, shape: "square", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 },
+          { id: "TBL-02", name: "Table 2", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 140, posY: 20, activeOrderId: null, guestCount: 0 },
+          { id: "TBL-03", name: "Table 3", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 260, posY: 20, activeOrderId: null, guestCount: 0 },
+          { id: "TBL-04", name: "Table 4", section: "Main Dining", seats: 6, shape: "rectangle", status: "available", posX: 380, posY: 20, activeOrderId: null, guestCount: 0 },
+          { id: "TBL-05", name: "Table 5", section: "Main Dining", seats: 2, shape: "round", status: "available", posX: 20, posY: 140, activeOrderId: null, guestCount: 0 },
+          { id: "TBL-06", name: "Table 6", section: "Main Dining", seats: 4, shape: "round", status: "available", posX: 140, posY: 140, activeOrderId: null, guestCount: 0 },
+          { id: "TBL-07", name: "Table 7", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 },
+          { id: "TBL-08", name: "Table 8", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 140, posY: 20, activeOrderId: null, guestCount: 0 },
+          { id: "TBL-09", name: "VIP Room 1", section: "VIP / Function", seats: 8, shape: "rectangle", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 }
+        ]);
       }
     })();
 
@@ -290,7 +328,7 @@ export const DB = {
    */
   async getDisplaySettings() {
     const settings = await localDB.settings.get("display_settings");
-    return settings || {
+    const defaults = {
       key: "display_settings",
       layoutPreset: "split",
       themeMode: "dark",
@@ -305,13 +343,24 @@ export const DB = {
       showTagline: true,
       customWelcome: "Welcome! Your order details will appear here as items are scanned.",
       customFooterNote: "Customer Display Terminal • Live Order Mirror",
-      componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"]
+      componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"],
+      photoPresentationEnabled: true,
+      photoDisplayMode: "lineup",
+      photoInterval: 5,
+      photoFitMode: "cover",
+      photoLayoutPlacement: "adaptive",
+      photos: []
     };
+    return { ...defaults, ...(settings || {}) };
   },
 
   async saveDisplaySettings(updates) {
     const current = await this.getDisplaySettings();
     const merged = { ...current, ...updates, key: "display_settings" };
+    // Enforce maximum 20 photos constraint
+    if (Array.isArray(merged.photos) && merged.photos.length > 20) {
+      merged.photos = merged.photos.slice(0, 20);
+    }
     await localDB.settings.put(merged);
 
     try {
@@ -323,6 +372,24 @@ export const DB = {
     } catch (_) {}
 
     return merged;
+  },
+
+  /**
+   * Customer Display Photo Presentation Helpers (Max 20 Photos)
+   */
+  async getDisplayPhotos() {
+    const settings = await this.getDisplaySettings();
+    return settings.photos || [];
+  },
+
+  async saveDisplayPhotos(photosList) {
+    if (!Array.isArray(photosList)) return [];
+    const capped = photosList.slice(0, 20).map((p, idx) => ({
+      ...p,
+      order: typeof p.order === "number" ? p.order : idx + 1
+    }));
+    await this.saveDisplaySettings({ photos: capped });
+    return capped;
   },
 
   /**
@@ -345,6 +412,7 @@ export const DB = {
       useNumberPager: false,
       pagerCount: 24,
       defaultInitialCash: 1000.0,
+      autoOpenDrawer: true,
       karinderyaMode: false,
       karinderyaAutoCash: true,
       karinderyaAutoGCash: true,
@@ -1082,6 +1150,150 @@ export const DB = {
       return allOrders.filter((o) => new Date(o.timestamp) >= startOfMonth).length;
     }
     return 0;
+  },
+
+  /**
+   * =============================================================
+   * TABLE LAYOUT & DINING CONFIGURATION SYSTEM (Cafe, Restaurant, Canteen)
+   * =============================================================
+   */
+  async getTableSettings() {
+    const settings = await localDB.settings.get("table_settings");
+    const defaults = {
+      key: "table_settings",
+      enabled: true,
+      layoutType: "restaurant", // "cafe" | "restaurant" | "canteen"
+      sections: ["Main Dining", "Patio / Outdoor", "VIP / Function"],
+      autoClearOnPayment: true,
+      requireTableOnDineIn: false
+    };
+    return { ...defaults, ...(settings || {}) };
+  },
+
+  async saveTableSettings(updates) {
+    const current = await this.getTableSettings();
+    const merged = { ...current, ...updates, key: "table_settings" };
+    await localDB.settings.put(merged);
+    return merged;
+  },
+
+  async getTables(section = null) {
+    const all = await localDB.tables.toArray();
+    if (section && section !== "all") {
+      return all.filter((t) => t.section === section);
+    }
+    return all.sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true }));
+  },
+
+  async getTable(id) {
+    if (!id) return null;
+    return await localDB.tables.get(id);
+  },
+
+  async saveTable(tableData) {
+    if (!tableData) throw new Error("Table data is required");
+    const id = tableData.id || `TBL-${Date.now().toString().slice(-4)}`;
+    const table = {
+      id,
+      name: tableData.name || `Table ${id}`,
+      section: tableData.section || "Main Dining",
+      seats: Number(tableData.seats) || 4,
+      shape: tableData.shape || "square", // square | round | rectangle
+      status: tableData.status || "available", // available | occupied | billed | reserved
+      posX: typeof tableData.posX === "number" ? tableData.posX : 20,
+      posY: typeof tableData.posY === "number" ? tableData.posY : 20,
+      activeOrderId: tableData.activeOrderId || null,
+      guestCount: Number(tableData.guestCount) || 0,
+      orderTotal: Number(tableData.orderTotal) || 0,
+      notes: tableData.notes || ""
+    };
+    await localDB.tables.put(table);
+    return table;
+  },
+
+  async deleteTable(id) {
+    if (!id) return false;
+    await localDB.tables.delete(id);
+    return true;
+  },
+
+  async setTableStatus(id, status, details = {}) {
+    const table = await this.getTable(id);
+    if (!table) return null;
+    table.status = status;
+    if (details.activeOrderId !== undefined) table.activeOrderId = details.activeOrderId;
+    if (details.guestCount !== undefined) table.guestCount = details.guestCount;
+    if (details.orderTotal !== undefined) table.orderTotal = details.orderTotal;
+    if (details.notes !== undefined) table.notes = details.notes;
+    await localDB.tables.put(table);
+    return table;
+  },
+
+  async clearTable(id) {
+    const table = await this.getTable(id);
+    if (!table) return null;
+    table.status = "available";
+    table.activeOrderId = null;
+    table.guestCount = 0;
+    table.orderTotal = 0;
+    await localDB.tables.put(table);
+    return table;
+  },
+
+  async resetTableLayoutTemplate(type = "restaurant") {
+    await localDB.tables.clear();
+    let sections = [];
+    let defaultTables = [];
+
+    if (type === "cafe") {
+      sections = ["Main Cafe", "Window Counter", "Terrace"];
+      defaultTables = [
+        { id: "TBL-C1", name: "Cafe 1", section: "Main Cafe", seats: 2, shape: "round", status: "available", posX: 30, posY: 30 },
+        { id: "TBL-C2", name: "Cafe 2", section: "Main Cafe", seats: 2, shape: "round", status: "available", posX: 150, posY: 30 },
+        { id: "TBL-C3", name: "Cafe 3", section: "Main Cafe", seats: 4, shape: "square", status: "available", posX: 270, posY: 30 },
+        { id: "TBL-C4", name: "Window 1", section: "Window Counter", seats: 1, shape: "rectangle", status: "available", posX: 30, posY: 30 },
+        { id: "TBL-C5", name: "Window 2", section: "Window Counter", seats: 1, shape: "rectangle", status: "available", posX: 150, posY: 30 },
+        { id: "TBL-C6", name: "Window 3", section: "Window Counter", seats: 1, shape: "rectangle", status: "available", posX: 270, posY: 30 },
+        { id: "TBL-C7", name: "Terrace A", section: "Terrace", seats: 4, shape: "square", status: "available", posX: 30, posY: 30 },
+        { id: "TBL-C8", name: "Terrace B", section: "Terrace", seats: 4, shape: "square", status: "available", posX: 150, posY: 30 }
+      ];
+    } else if (type === "canteen") {
+      sections = ["Canteen Hall A", "Canteen Hall B", "Faculty & Staff"];
+      defaultTables = [
+        { id: "TBL-K1", name: "Bench 1", section: "Canteen Hall A", seats: 8, shape: "rectangle", status: "available", posX: 30, posY: 30 },
+        { id: "TBL-K2", name: "Bench 2", section: "Canteen Hall A", seats: 8, shape: "rectangle", status: "available", posX: 200, posY: 30 },
+        { id: "TBL-K3", name: "Bench 3", section: "Canteen Hall A", seats: 8, shape: "rectangle", status: "available", posX: 30, posY: 150 },
+        { id: "TBL-K4", name: "Bench 4", section: "Canteen Hall A", seats: 8, shape: "rectangle", status: "available", posX: 200, posY: 150 },
+        { id: "TBL-K5", name: "Bench 5", section: "Canteen Hall B", seats: 6, shape: "rectangle", status: "available", posX: 30, posY: 30 },
+        { id: "TBL-K6", name: "Bench 6", section: "Canteen Hall B", seats: 6, shape: "rectangle", status: "available", posX: 200, posY: 30 },
+        { id: "TBL-K7", name: "Staff T-1", section: "Faculty & Staff", seats: 4, shape: "square", status: "available", posX: 30, posY: 30 },
+        { id: "TBL-K8", name: "Staff T-2", section: "Faculty & Staff", seats: 4, shape: "square", status: "available", posX: 160, posY: 30 }
+      ];
+    } else {
+      // Restaurant default
+      sections = ["Main Dining", "Patio / Outdoor", "VIP / Function"];
+      defaultTables = [
+        { id: "TBL-01", name: "Table 1", section: "Main Dining", seats: 2, shape: "square", status: "available", posX: 30, posY: 30 },
+        { id: "TBL-02", name: "Table 2", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 150, posY: 30 },
+        { id: "TBL-03", name: "Table 3", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 270, posY: 30 },
+        { id: "TBL-04", name: "Table 4", section: "Main Dining", seats: 6, shape: "rectangle", status: "available", posX: 390, posY: 30 },
+        { id: "TBL-05", name: "Table 5", section: "Main Dining", seats: 2, shape: "round", status: "available", posX: 30, posY: 150 },
+        { id: "TBL-06", name: "Table 6", section: "Main Dining", seats: 4, shape: "round", status: "available", posX: 150, posY: 150 },
+        { id: "TBL-07", name: "Table 7", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 30, posY: 30 },
+        { id: "TBL-08", name: "Table 8", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 150, posY: 30 },
+        { id: "TBL-09", name: "VIP Room 1", section: "VIP / Function", seats: 8, shape: "rectangle", status: "available", posX: 30, posY: 30 }
+      ];
+    }
+
+    await this.saveTableSettings({ layoutType: type, sections });
+    await localDB.tables.bulkPut(defaultTables.map((t) => ({
+      ...t,
+      activeOrderId: null,
+      guestCount: 0,
+      orderTotal: 0
+    })));
+
+    return { sections, tables: defaultTables };
   }
 };
 

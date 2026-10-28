@@ -160,18 +160,30 @@ class POSContainer extends StatefulWidget {
   State<POSContainer> createState() => _POSContainerState();
 }
 
-class _POSContainerState extends State<POSContainer> {
+class _POSContainerState extends State<POSContainer> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Attempt auto-mounting of customer display on secondary monitor
     WidgetsBinding.instance.addPostFrameCallback((_) {
       launchSecondaryPresentation();
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) launchSecondaryPresentation();
+      });
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      launchSecondaryPresentation();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     PosLocalWebServer.stop();
     super.dispose();
   }

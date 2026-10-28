@@ -2024,4 +2024,47 @@
   animation: scanLaser 2s infinite ease-in-out;
 }
 
+/* =============================================================
+   DINING & FLOOR PLAN TABLE LAYOUT STYLING
+   ============================================================= */
+.btn-tables {
+  border-color: rgba(2, 132, 199, 0.4);
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.btn-tables:hover {
+  border-color: var(--accent);
+  background: rgba(2, 132, 199, 0.1);
+}
+
+.badge-table {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  letter-spacing: 0.3px;
+  transition: transform 0.15s ease, background-color 0.2s ease;
+}
+
+.badge-table:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.cashier-table-tile:hover {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.08);
+}
+
+.cashier-table-tile.active {
+  box-shadow: 0 0 0 3px var(--accent), 0 4px 12px rgba(2, 132, 199, 0.4) !important;
+}
+
+.btn-picker-sec.active {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  border-color: var(--accent) !important;
+  font-weight: 700;
+}
+
 /* REMARK: COMPONENTS_CSS_EXPANDED_PRINTER_LIST_AND_EXPORT_MODAL_COMPLETE */

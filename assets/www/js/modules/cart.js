@@ -334,8 +334,29 @@ export const Cart = {
       vatableSales: Number(vatableSales.toFixed(2)),
       vatAmount: Number(vatAmount.toFixed(2)),
       total: Number(total.toFixed(2)),
-      ticketLabel: this.getActiveTicket().label
+      ticketLabel: this.getActiveTicket().label,
+      tableId: this.getActiveTicket().tableId || null,
+      tableName: this.getActiveTicket().tableName || null,
+      tableSection: this.getActiveTicket().tableSection || null
     };
+  },
+
+  setTable(tableId, tableName, tableSection) {
+    const t = this.getActiveTicket();
+    t.tableId = tableId;
+    t.tableName = tableName;
+    t.tableSection = tableSection;
+    this.notify();
+    this.emitTicketsChanged();
+  },
+
+  clearTable() {
+    const t = this.getActiveTicket();
+    delete t.tableId;
+    delete t.tableName;
+    delete t.tableSection;
+    this.notify();
+    this.emitTicketsChanged();
   },
 
   /**

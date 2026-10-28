@@ -109,6 +109,16 @@ export const AdminDisplay = {
       // Component Sorter List
       componentsList: document.getElementById("cd-components-list"),
 
+      // Photo Presentation Controls (Up to 20 Photos)
+      cbPhotoEnabled: document.getElementById("cb-cd-photo-enabled"),
+      selectPhotoMode: document.getElementById("select-cd-photo-mode"),
+      selectPhotoInterval: document.getElementById("select-cd-photo-interval"),
+      selectPhotoFit: document.getElementById("select-cd-photo-fit"),
+      inputPhotoUpload: document.getElementById("input-cd-photo-upload"),
+      btnCdClearAllPhotos: document.getElementById("btn-cd-clear-all-photos"),
+      cdPhotosRoster: document.getElementById("cd-photos-roster"),
+      cdPhotoCountBadge: document.getElementById("cd-photo-count-badge"),
+
       // 16:9 Simulator Preview
       previewFrame: document.getElementById("cd-preview-frame"),
       btnRefreshPreviewCart: document.getElementById("btn-refresh-preview-cart")
@@ -208,14 +218,61 @@ export const AdminDisplay = {
       };
     }
 
-    // 6. Save Configuration to IndexedDB
+    // 6. Photo Presentation Slideshow Controls (Up to 20 Photos)
+    if (this.elements.cbPhotoEnabled) {
+      this.elements.cbPhotoEnabled.onchange = () => {
+        this.currentSettings.photoPresentationEnabled = this.elements.cbPhotoEnabled.checked;
+        this.broadcastLivePreview();
+      };
+    }
+
+    if (this.elements.selectPhotoMode) {
+      this.elements.selectPhotoMode.onchange = () => {
+        this.currentSettings.photoDisplayMode = this.elements.selectPhotoMode.value;
+        this.broadcastLivePreview();
+      };
+    }
+
+    if (this.elements.selectPhotoInterval) {
+      this.elements.selectPhotoInterval.onchange = () => {
+        this.currentSettings.photoInterval = Number(this.elements.selectPhotoInterval.value) || 5;
+        this.broadcastLivePreview();
+      };
+    }
+
+    if (this.elements.selectPhotoFit) {
+      this.elements.selectPhotoFit.onchange = () => {
+        this.currentSettings.photoFitMode = this.elements.selectPhotoFit.value;
+        this.broadcastLivePreview();
+      };
+    }
+
+    if (this.elements.inputPhotoUpload) {
+      this.elements.inputPhotoUpload.onchange = async (e) => {
+        await this.handlePhotoUpload(e.target.files);
+        e.target.value = "";
+      };
+    }
+
+    if (this.elements.btnCdClearAllPhotos) {
+      this.elements.btnCdClearAllPhotos.onclick = () => {
+        if (!this.currentSettings.photos || this.currentSettings.photos.length === 0) return;
+        if (confirm("Clear all promotional slideshow photos?")) {
+          this.currentSettings.photos = [];
+          this.renderPhotoRoster();
+          this.broadcastLivePreview();
+        }
+      };
+    }
+
+    // 7. Save Configuration to IndexedDB
     if (this.elements.btnSaveDisplaySettings) {
       this.elements.btnSaveDisplaySettings.onclick = async () => {
         await this.saveDisplaySettings();
       };
     }
 
-    // 7. Reset Defaults Action
+    // 8. Reset Defaults Action
     if (this.elements.btnResetDisplaySettings) {
       this.elements.btnResetDisplaySettings.onclick = async () => {
         if (confirm("Reset customer display settings to factory modern slate defaults?")) {
@@ -224,14 +281,14 @@ export const AdminDisplay = {
       };
     }
 
-    // 8. Push Live to Screen #2 (Mount Native Presentation)
+    // 9. Push Live to Screen #2 (Mount Native Presentation)
     if (this.elements.btnPushLiveDisplay) {
       this.elements.btnPushLiveDisplay.onclick = async () => {
         await this.pushLiveToSecondary();
       };
     }
 
-    // 9. Sample Cart Simulation Toggle
+    // 10. Sample Cart Simulation Toggle
     if (this.elements.btnRefreshPreviewCart) {
       this.elements.btnRefreshPreviewCart.onclick = () => {
         this.toggleSampleCart();
@@ -311,6 +368,22 @@ export const AdminDisplay = {
     if (this.elements.inputFooterNote) {
       this.elements.inputFooterNote.value = cfg.customFooterNote || "Customer Display Terminal • Live Order Mirror";
     }
+
+    // 5. Photo Presentation Controls (Up to 20 Photos)
+    if (this.elements.cbPhotoEnabled) {
+      this.elements.cbPhotoEnabled.checked = cfg.photoPresentationEnabled !== false;
+    }
+    if (this.elements.selectPhotoMode) {
+      this.elements.selectPhotoMode.value = cfg.photoDisplayMode || "lineup";
+    }
+    if (this.elements.selectPhotoInterval) {
+      this.elements.selectPhotoInterval.value = String(cfg.photoInterval || 5);
+    }
+    if (this.elements.selectPhotoFit) {
+      this.elements.selectPhotoFit.value = cfg.photoFitMode || "cover";
+    }
+
+    this.renderPhotoRoster();
   },
 
   /**
@@ -465,6 +538,193 @@ export const AdminDisplay = {
   },
 
   /**
+   * =============================================================
+   * PHOTO PRESENTATION LINEUP & RANDOM ENGINE (UP TO 20 PHOTOS)
+   * =============================================================
+   */
+  renderPhotoRoster() {
+    if (!this.elements.cdPhotosRoster) return;
+
+    const photos = Array.isArray(this.currentSettings.photos) ? this.currentSettings.photos : [];
+    
+    // Update Photo Count Badge
+    if (this.elements.cdPhotoCountBadge) {
+      this.elements.cdPhotoCountBadge.textContent = `${photos.length} / 20 Photos`;
+      this.elements.cdPhotoCountBadge.style.background = photos.length >= 20 ? "#dc2626" : "";
+    }
+
+    if (photos.length === 0) {
+      this.elements.cdPhotosRoster.innerHTML = `
+        <div style="text-align: center; padding: 20px 10px; background: var(--bg-alt); border: var(--border); border-radius: var(--radius); color: var(--text-muted); font-size: 0.8rem;">
+          📷 No promotional photos uploaded yet.<br/>
+          Click <b>➕ Add Photos</b> above to upload up to 20 images for the customer screen presentation.
+        </div>
+      `;
+      return;
+    }
+
+    this.elements.cdPhotosRoster.innerHTML = photos.map((p, index) => {
+      const isFirst = index === 0;
+      const isLast = index === photos.length - 1;
+      const orderNum = index + 1;
+      const caption = p.caption || p.name || `Photo #${orderNum}`;
+
+      return `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--bg-alt); border: var(--border); border-radius: var(--radius);">
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+            <span class="badge" style="background: var(--accent); color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 28px; text-align: center;">#${orderNum}</span>
+            <img src="${p.dataUrl}" alt="Thumb" style="width: 48px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0;" />
+            <input 
+              type="text" 
+              class="cd-photo-caption-input" 
+              data-index="${index}" 
+              value="${caption.replace(/"/g, '&quot;')}" 
+              placeholder="Photo caption / promo title"
+              style="font-size: 0.78rem; padding: 4px 8px; flex: 1; min-width: 80px;"
+            />
+          </div>
+          <div style="display: flex; gap: 4px; flex-shrink: 0;">
+            <button type="button" class="btn-tool btn-sm btn-photo-move-up" data-index="${index}" ${isFirst ? "disabled" : ""} title="Move Up in Lineup">▲</button>
+            <button type="button" class="btn-tool btn-sm btn-photo-move-down" data-index="${index}" ${isLast ? "disabled" : ""} title="Move Down in Lineup">▼</button>
+            <button type="button" class="btn-tool btn-danger-outline btn-sm btn-photo-delete" data-index="${index}" title="Delete Photo">✖</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // Bind Move Up
+    this.elements.cdPhotosRoster.querySelectorAll(".btn-photo-move-up").forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.index, 10);
+        this.movePhoto(idx, -1);
+      };
+    });
+
+    // Bind Move Down
+    this.elements.cdPhotosRoster.querySelectorAll(".btn-photo-move-down").forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.index, 10);
+        this.movePhoto(idx, 1);
+      };
+    });
+
+    // Bind Delete
+    this.elements.cdPhotosRoster.querySelectorAll(".btn-photo-delete").forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.index, 10);
+        this.deletePhoto(idx);
+      };
+    });
+
+    // Bind Caption edit
+    this.elements.cdPhotosRoster.querySelectorAll(".cd-photo-caption-input").forEach((input) => {
+      input.onchange = () => {
+        const idx = parseInt(input.dataset.index, 10);
+        this.updatePhotoCaption(idx, input.value.trim());
+      };
+    });
+  },
+
+  async handlePhotoUpload(fileList) {
+    if (!fileList || fileList.length === 0) return;
+
+    const currentPhotos = Array.isArray(this.currentSettings.photos) ? [...this.currentSettings.photos] : [];
+    const remainingSlots = 20 - currentPhotos.length;
+
+    if (remainingSlots <= 0) {
+      alert("Maximum limit of 20 photos reached. Please remove existing photos before adding new ones.");
+      return;
+    }
+
+    const filesToProcess = Array.from(fileList).slice(0, remainingSlots);
+    if (fileList.length > remainingSlots) {
+      alert(`Only ${remainingSlots} photo(s) added to stay within the 20 photos maximum limit.`);
+    }
+
+    for (const file of filesToProcess) {
+      try {
+        const dataUrl = await this.compressAndEncodeImage(file);
+        currentPhotos.push({
+          id: `PHOTO-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          name: file.name.replace(/\.[^/.]+$/, ""),
+          caption: file.name.replace(/\.[^/.]+$/, ""),
+          dataUrl,
+          order: currentPhotos.length + 1
+        });
+      } catch (err) {
+        console.warn("[Photo Upload Warning]:", err);
+      }
+    }
+
+    this.currentSettings.photos = currentPhotos.slice(0, 20);
+    this.renderPhotoRoster();
+    this.broadcastLivePreview();
+  },
+
+  compressAndEncodeImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1280;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  },
+
+  movePhoto(index, delta) {
+    const list = [...(this.currentSettings.photos || [])];
+    const targetIdx = index + delta;
+    if (targetIdx < 0 || targetIdx >= list.length) return;
+
+    const [moved] = list.splice(index, 1);
+    list.splice(targetIdx, 0, moved);
+
+    this.currentSettings.photos = list.map((p, idx) => ({ ...p, order: idx + 1 }));
+    this.renderPhotoRoster();
+    this.broadcastLivePreview();
+  },
+
+  deletePhoto(index) {
+    const list = [...(this.currentSettings.photos || [])];
+    list.splice(index, 1);
+    this.currentSettings.photos = list.map((p, idx) => ({ ...p, order: idx + 1 }));
+    this.renderPhotoRoster();
+    this.broadcastLivePreview();
+  },
+
+  updatePhotoCaption(index, caption) {
+    if (this.currentSettings.photos && this.currentSettings.photos[index]) {
+      this.currentSettings.photos[index].caption = caption;
+      this.broadcastLivePreview();
+    }
+  },
+
+  /**
    * Saves display configuration permanently into IndexedDB
    */
   async saveDisplaySettings() {
@@ -490,7 +750,12 @@ export const AdminDisplay = {
       showTagline: true,
       customWelcome: "Welcome! Your order details will appear here as items are scanned.",
       customFooterNote: "Customer Display Terminal • Live Order Mirror",
-      componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"]
+      componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"],
+      photoPresentationEnabled: true,
+      photoDisplayMode: "lineup",
+      photoInterval: 5,
+      photoFitMode: "cover",
+      photos: []
     };
 
     this.currentSettings = await DB.saveDisplaySettings(defaults);
@@ -503,22 +768,30 @@ export const AdminDisplay = {
   /**
    * Triggers native Android DisplayManager to launch or reconnect the external presentation screen
    */
-  async pushLiveToSecondary() {
+  async pushLiveToSecondary(options = {}) {
     this.broadcastLivePreview();
 
     if (window.flutter_inappwebview && typeof window.flutter_inappwebview.callHandler === "function") {
       try {
         const res = await window.flutter_inappwebview.callHandler("openSecondaryDisplay");
         if (res && res.ok) {
-          alert("Secondary customer presentation display mounted successfully on Android Display #2.");
+          if (!options.silent) {
+            alert("Secondary customer presentation display mounted successfully on Android Display #2.");
+          }
         } else {
-          alert("No external secondary monitor detected by Android DisplayManager.\n\nEnsure your second monitor is connected via HDMI or integrated hardware cable.");
+          if (!options.silent) {
+            alert("No external secondary monitor detected by Android DisplayManager.\n\nEnsure your second monitor is connected via HDMI or integrated hardware cable.");
+          }
         }
       } catch (err) {
-        alert(`Native presentation call error: ${err.message}`);
+        if (!options.silent) {
+          alert(`Native presentation call error: ${err.message}`);
+        }
       }
     } else {
-      alert("Settings pushed via local broadcast channel!\n\n(Running in web preview mode. When deployed inside the Android APK, this mounts the hardware presentation screen).");
+      if (!options.silent) {
+        alert("Settings pushed via local broadcast channel!\n\n(Running in web preview mode. When deployed inside the Android APK, this mounts the hardware presentation screen).");
+      }
     }
   }
 };

@@ -30,6 +30,7 @@ export const AdminBackup = {
       cbExportItems: document.getElementById("cb-export-items"),
       cbExportUsers: document.getElementById("cb-export-users"),
       cbExportStore: document.getElementById("cb-export-store"),
+      cbExportTables: document.getElementById("cb-export-tables"),
       cbExportSync: document.getElementById("cb-export-sync"),
       cbExportHotspot: document.getElementById("cb-export-hotspot"),
       cbExportVouchers: document.getElementById("cb-export-vouchers"),
@@ -42,6 +43,7 @@ export const AdminBackup = {
 
       statBackupItemsCount: document.getElementById("stat-backup-items-count"),
       statBackupUsersCount: document.getElementById("stat-backup-users-count"),
+      statBackupTablesCount: document.getElementById("stat-backup-tables-count"),
       statBackupVouchersCount: document.getElementById("stat-backup-vouchers-count"),
       statBackupOtaRepo: document.getElementById("stat-backup-ota-repo"),
 
@@ -192,11 +194,12 @@ export const AdminBackup = {
    */
   async loadBackupSettings() {
     try {
-      const [prodCount, catCount, userCount, vouchCount] = await Promise.all([
+      const [prodCount, catCount, userCount, vouchCount, tableCount] = await Promise.all([
         DB.instance.products.count().catch(() => 0),
         DB.instance.categories.count().catch(() => 0),
         DB.instance.users.count().catch(() => 0),
-        DB.instance.vouchers.count().catch(() => 0)
+        DB.instance.vouchers.count().catch(() => 0),
+        DB.instance.tables.count().catch(() => 0)
       ]);
 
       if (this.elements.statBackupItemsCount) {
@@ -204,6 +207,9 @@ export const AdminBackup = {
       }
       if (this.elements.statBackupUsersCount) {
         this.elements.statBackupUsersCount.textContent = `${userCount} accounts`;
+      }
+      if (this.elements.statBackupTablesCount) {
+        this.elements.statBackupTablesCount.textContent = `${tableCount} tables`;
       }
       if (this.elements.statBackupVouchersCount) {
         this.elements.statBackupVouchersCount.textContent = `${vouchCount} vouchers`;
@@ -461,12 +467,13 @@ export const AdminBackup = {
     const includeItems = this.elements.cbExportItems ? this.elements.cbExportItems.checked : false;
     const includeUsers = this.elements.cbExportUsers ? this.elements.cbExportUsers.checked : false;
     const includeStore = this.elements.cbExportStore ? this.elements.cbExportStore.checked : false;
+    const includeTables = this.elements.cbExportTables ? this.elements.cbExportTables.checked : false;
     const includeSync = this.elements.cbExportSync ? this.elements.cbExportSync.checked : false;
     const includeHotspot = this.elements.cbExportHotspot ? this.elements.cbExportHotspot.checked : false;
     const includeVouchers = this.elements.cbExportVouchers ? this.elements.cbExportVouchers.checked : false;
     const includeOta = this.elements.cbExportOta ? this.elements.cbExportOta.checked : false;
 
-    if (!includeItems && !includeUsers && !includeStore && !includeSync && !includeHotspot && !includeVouchers && !includeOta) {
+    if (!includeItems && !includeUsers && !includeStore && !includeTables && !includeSync && !includeHotspot && !includeVouchers && !includeOta) {
       alert("Please select at least one component to include in your backup.");
       return;
     }
@@ -512,6 +519,7 @@ export const AdminBackup = {
         useNumberPager: fullStore.useNumberPager,
         pagerCount: fullStore.pagerCount,
         defaultInitialCash: fullStore.defaultInitialCash,
+        autoOpenDrawer: fullStore.autoOpenDrawer !== false,
         karinderyaMode: fullStore.karinderyaMode,
         karinderyaAutoCash: fullStore.karinderyaAutoCash,
         karinderyaAutoGCash: fullStore.karinderyaAutoGCash,
@@ -520,6 +528,19 @@ export const AdminBackup = {
         karinderyaVoucherOnly: fullStore.karinderyaVoucherOnly
       };
       payload._modulesIncluded.push("store");
+    }
+
+    // 3.1 Dining & Floor Plan Table Layout
+    if (includeTables) {
+      const [tableSettings, tableRecords] = await Promise.all([
+        DB.getTableSettings(),
+        DB.getTables()
+      ]);
+      payload.modules.tables = {
+        settings: tableSettings,
+        tables: tableRecords
+      };
+      payload._modulesIncluded.push("tables");
     }
 
     // 4. Cloud Sync Credentials
@@ -717,6 +738,16 @@ export const AdminBackup = {
           }
         },
         {
+          key: "tables",
+          label: "🪑 Dining & Floor Plan Table Layout",
+          detect: () => {
+            const t = modules.tables;
+            if (t && Array.isArray(t.tables)) return `${t.tables.length} tables found`;
+            if (Array.isArray(t)) return `${t.length} tables found`;
+            return null;
+          }
+        },
+        {
           key: "sync",
           label: "☁️ Cloud Sync Credentials",
           detect: () => {
@@ -883,6 +914,21 @@ export const AdminBackup = {
             Bus.emit("store:karinderya-changed", storeData.karinderyaMode);
           }
           restoredSummary.push("Store profile & Fast Mode");
+        }
+      }
+
+      // 3.1 Dining & Floor Plan Table Layout
+      if (selectedModules.includes("tables")) {
+        const tableData = modules.tables || {};
+        const tables = Array.isArray(tableData.tables) ? tableData.tables : Array.isArray(tableData) ? tableData : [];
+        if (tableData.settings) {
+          await DB.saveTableSettings(tableData.settings);
+        }
+        if (tables.length > 0) {
+          if (isReplace) await DB.instance.tables.clear();
+          await DB.instance.tables.bulkPut(tables);
+          restoredSummary.push(`${tables.length} dining tables`);
+          Bus.emit("tables:updated");
         }
       }
 

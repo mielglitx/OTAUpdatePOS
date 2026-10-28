@@ -293,6 +293,9 @@ export const Printer = {
     if (ticket.orderNumber) {
       text(`Order: ${ticket.orderNumber}\n`);
     }
+    if (ticket.tableName) {
+      text(`Table: ${ticket.tableName}${ticket.tableSection ? " (" + ticket.tableSection + ")" : ""}\n`);
+    }
     if (ticket.cashierName) {
       text(`Cashier: ${ticket.cashierName}\n`);
     }
@@ -475,6 +478,9 @@ export const Printer = {
       append([0x1B, 0x45, 0x01]);
       text(`ORDER: #${ticket.orderNumber}\n`);
       append([0x1B, 0x45, 0x00]);
+    }
+    if (ticket.tableName) {
+      text(`TABLE: ${ticket.tableName}\n`);
     }
     const cashier = ticket.cashierName || "Staff";
     text(`Cashier: ${cashier}\n`);
@@ -741,6 +747,11 @@ export const Printer = {
     }
 
     text(`Time: ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}\n`);
+    if (ticket.tableName) {
+      append([0x1B, 0x21, 0x18]);
+      text(`TABLE: ${ticket.tableName}\n`);
+      append([0x1B, 0x21, 0x00]);
+    }
     if (ticket.cashierName) {
       text(`Server/Cashier: ${ticket.cashierName}\n`);
     }

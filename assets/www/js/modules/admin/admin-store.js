@@ -72,6 +72,17 @@ export const AdminStore = {
       }
     });
 
+    // Instant Auto-Save for Cash Drawer Toggle
+    if (this.elements.storeAutoOpenDrawerCheckbox) {
+      this.elements.storeAutoOpenDrawerCheckbox.onchange = async () => {
+        const val = this.elements.storeAutoOpenDrawerCheckbox.checked;
+        await DB.saveStoreSettings({ autoOpenDrawer: val });
+        try {
+          localStorage.setItem("pos_auto_open_drawer", String(val));
+        } catch (_) {}
+      };
+    }
+
     // Toggle buzzer count input visibility based on checkbox state
     if (this.elements.storeUsePagerCheckbox) {
       this.elements.storeUsePagerCheckbox.onchange = () => {
@@ -263,7 +274,12 @@ export const AdminStore = {
     if (this.elements.storeTaglineInput) this.elements.storeTaglineInput.value = settings.tagline || "";
 
     if (this.elements.storeAutoOpenDrawerCheckbox) {
-      this.elements.storeAutoOpenDrawerCheckbox.checked = settings.autoOpenDrawer !== false;
+      const localDrawer = localStorage.getItem("pos_auto_open_drawer");
+      if (localDrawer !== null) {
+        this.elements.storeAutoOpenDrawerCheckbox.checked = localDrawer === "true";
+      } else {
+        this.elements.storeAutoOpenDrawerCheckbox.checked = settings.autoOpenDrawer !== false && settings.autoOpenDrawer !== "false";
+      }
     }
 
     const isPagerEnabled = Boolean(settings.useNumberPager);

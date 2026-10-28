@@ -360,11 +360,44 @@ export const Cart = {
   },
 
   /**
+   * Loads itemized order from a table into the active ticket
+   */
+  loadOrder(items = [], tableId = null, tableName = null, tableSection = null) {
+    const t = this.getActiveTicket();
+    t.items = (items || []).map((i) => ({
+      id: i.id,
+      name: i.name,
+      price: Number(i.price) || 0,
+      qty: Number(i.qty) || 1,
+      isMonitored: Boolean(i.isMonitored)
+    }));
+    t.tableId = tableId;
+    t.tableName = tableName;
+    t.tableSection = tableSection;
+    this.notify();
+    this.emitTicketsChanged();
+  },
+
+  /**
    * Broadcasts updated ticket calculations to internal subscribers and external customer screens
    */
   notify() {
     const calc = this.calculate();
     Bus.emit("cart:updated", calc);
+
+    // Synchronize active order items and total to table record in IndexedDB
+    const activeTicket = this.getActiveTicket();
+    if (activeTicket && activeTicket.tableId) {
+      const status = calc.items.length > 0 ? "occupied" : "available";
+      DB.setTableStatus(activeTicket.tableId, status, {
+        activeOrderId: activeTicket.id,
+        activeOrderItems: calc.items,
+        orderTotal: calc.total,
+        guestCount: activeTicket.guestCount || 0
+      }).then(() => {
+        Bus.emit("tables:updated");
+      }).catch(() => {});
+    }
 
     // Mirror cart updates directly to second monitor
     this.broadcastToCustomer({

@@ -1105,6 +1105,145 @@ export const Printer = {
     return await Promise.allSettled(promises);
   },
 
+
+  /**
+   * Generates Customer Bill Slip / Statement of Account (SOA) ESC/POS bytes for table dining
+   * @param {Object} table - Table record { name, section, seatedAt }
+   * @param {Array<Object>} items - Active ticket items
+   * @param {string} paperWidth - Paper format ('58mm' or '80mm')
+   * @returns {Promise<Uint8Array>}
+   */
+  async buildBillSlipBytes(table, items, paperWidth = "58mm") {
+    const is80mm = paperWidth === "80mm";
+    const totalCols = is80mm ? 48 : 32;
+    const divider = "-".repeat(totalCols) + "\n";
+    const doubleDivider = "=".repeat(totalCols) + "\n";
+
+    const store = await DB.getStoreSettings();
+
+    const encoder = new TextEncoder();
+    const buffer = [];
+
+    const append = (bytes) => buffer.push(...bytes);
+    const text = (str) => {
+      const sanitized = str.replace(/₱/g, "P");
+      append(encoder.encode(sanitized));
+    };
+
+    // 1. Initialize Printer (ESC @)
+    append([0x1B, 0x40]);
+
+    // 2. Center Align (ESC a 1)
+    append([0x1B, 0x61, 0x01]);
+
+    // Store Name: Double Height & Bold
+    append([0x1B, 0x21, 0x20]);
+    text(`${store.storeName || "RESTAURANT & CAFE"}\n`);
+    append([0x1B, 0x21, 0x00]);
+
+    if (store.storeAddress) text(`${store.storeAddress}\n`);
+    if (store.storeContact) text(`Tel: ${store.storeContact}\n`);
+
+    text(doubleDivider);
+    append([0x1B, 0x45, 0x01]);
+    text("*** BILL SLIP / STATEMENT ***\n");
+    append([0x1B, 0x45, 0x00]);
+    text("(NOT AN OFFICIAL RECEIPT)\n");
+    text(divider);
+
+    // 3. Left Align Table Info
+    append([0x1B, 0x61, 0x00]);
+    append([0x1B, 0x45, 0x01]);
+    text(`TABLE: ${table.name || "Table"}${table.section ? " (" + table.section + ")" : ""}\n`);
+    append([0x1B, 0x45, 0x00]);
+
+    const now = new Date();
+    text(`Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\n`);
+    if (table.seatedAt) {
+      const seated = new Date(table.seatedAt);
+      text(`Seated: ${seated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\n`);
+    }
+    text(divider);
+
+    // 4. Pad Row Formatter
+    const padRow = (col1, col2, col3) => {
+      const c1Width = is80mm ? 24 : 16;
+      const c2Width = is80mm ? 7 : 4;
+      const c3Width = is80mm ? 15 : 10;
+
+      const lines = this.wrapText(col1, c1Width);
+      let output = "";
+
+      lines.forEach((line, idx) => {
+        const c1 = line.padEnd(c1Width, " ");
+        const c2 = idx === 0 ? col2.padEnd(c2Width, " ") : " ".repeat(c2Width);
+        const c3 = idx === 0 ? col3.padStart(c3Width, " ") : " ".repeat(c3Width);
+        output += `${c1} ${c2} ${c3}\n`;
+      });
+
+      return output;
+    };
+
+    text(padRow("ITEM", "QTY", "TOTAL"));
+    text(divider);
+
+    let total = 0;
+    if (Array.isArray(items)) {
+      items.forEach((item) => {
+        const name = item.name || "Item";
+        const qty = `${item.qty}x`;
+        const itemSub = (item.price || 0) * (item.qty || 1);
+        total += itemSub;
+        text(padRow(name, qty, `P${itemSub.toFixed(2)}`));
+      });
+    }
+
+    text(divider);
+
+    // 5. Right Align Total
+    append([0x1B, 0x61, 0x02]);
+    append([0x1B, 0x21, 0x18]); // Double height bold total
+    text(`TOTAL AMOUNT: P${total.toFixed(2)}\n`);
+    append([0x1B, 0x21, 0x00]);
+    text(divider);
+
+    // 6. Center Footer & Paper Cut
+    append([0x1B, 0x61, 0x01]);
+    text("Please present this slip at cashier.\nThank you for dining with us!\n");
+    text("\n\n\n");
+    append([0x1D, 0x56, 0x42, 0x00]);
+
+    return new Uint8Array(buffer);
+  },
+
+  /**
+   * Dispatches a Bill Slip / SOA to all enabled primary receipt printers
+   * @param {Object} table 
+   * @param {Array<Object>} items 
+   * @param {Array<Object>|null} [enabledPrinters=null]
+   * @returns {Promise<Array<Object>>}
+   */
+  async printBillSlip(table, items = [], enabledPrinters = null) {
+    const printers = enabledPrinters || await DB.getEnabledPrinters();
+    if (!printers || printers.length === 0) {
+      const bytes = await this.buildBillSlipBytes(table, items, "58mm");
+      return [await this.dispatch(bytes)];
+    }
+
+    const primaryPrinters = printers.filter(
+      (p) => p.role === "primary" || p.role === "both"
+    );
+    const targets = primaryPrinters.length > 0 ? primaryPrinters : printers;
+
+    const promises = targets.map(async (p) => {
+      const width = p.paperWidth || "58mm";
+      const bytes = await this.buildBillSlipBytes(table, items, width);
+      return await this.dispatchToTarget(p, bytes);
+    });
+
+    return await Promise.allSettled(promises);
+  },
+
   /**
    * Cash Drawer Kick Multi-Dispatch
    * @param {Array<Object>} enabledPrinters 

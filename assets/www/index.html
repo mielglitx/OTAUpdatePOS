@@ -846,7 +846,7 @@
           <div>
             <h3>🪑 Dining & Floor Plan Table Layout</h3>
             <p class="printer-hint-text">
-              Configure table setups for cafes, restaurants, or canteens. Cashiers can assign tickets to tables, track dining occupancy, and print table names on receipts.
+              Draw and arrange tables and layout elements for cafes, restaurants, or canteens. Cashiers can click tables to assign orders, view active order details, and bill out.
             </p>
           </div>
           <div class="admin-actions-group">
@@ -877,6 +877,25 @@
           </div>
         </div>
 
+        <!-- Drawing Toolbar & Basic Shapes -->
+        <div class="sync-settings-card" style="margin-bottom: 12px; padding: 10px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span class="label-bold-sm" style="margin-right: 4px;">🎨 Draw Elements:</span>
+              <button type="button" class="btn-tool btn-sm" id="btn-draw-square">🟦 + Square Table</button>
+              <button type="button" class="btn-tool btn-sm" id="btn-draw-round">⚪ + Round Table</button>
+              <button type="button" class="btn-tool btn-sm" id="btn-draw-rect">▬ + Rect Table</button>
+              <button type="button" class="btn-tool btn-sm" id="btn-draw-counter">☕ + Counter / Bar</button>
+              <button type="button" class="btn-tool btn-sm" id="btn-draw-wall">🧱 + Wall / Divider</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button type="button" class="btn-tool btn-sm active" id="btn-tab-view-canvas">🎨 Floor Canvas</button>
+              <button type="button" class="btn-tool btn-sm" id="btn-tab-view-cards">📋 Table Cards</button>
+              <button type="button" class="btn-tool btn-sm" id="btn-admin-save-layout" title="Persist table positions">💾 Save Layout</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Section Filter & Live Metrics Bar -->
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -891,8 +910,23 @@
           </div>
         </div>
 
-        <!-- Admin Table Grid Cards -->
-        <div id="admin-tables-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;"></div>
+        <!-- View 1: 2D Visual Floor Plan Canvas -->
+        <div id="admin-canvas-view">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <small style="color: var(--text-muted); font-size: 0.74rem;">
+              💡 <b>Drag & Drop:</b> Move tables anywhere on the floor grid. Click any table to edit seats, shape, or number.
+            </small>
+            <small style="color: var(--text-muted); font-size: 0.74rem;">
+              🟢 Available &nbsp; 🔴 Occupied &nbsp; 🪑 Seat Count
+            </small>
+          </div>
+          <div class="floor-canvas-container" id="admin-floor-canvas-wrap">
+            <div class="floor-canvas-surface" id="admin-floor-canvas"></div>
+          </div>
+        </div>
+
+        <!-- View 2: Admin Table Grid Cards (Toggleable) -->
+        <div id="admin-tables-grid" class="hidden" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 10px;"></div>
       </section>
 
       <!-- Tab 8: Cloud Sync & Remote Database Settings -->
@@ -2733,25 +2767,109 @@
   <!-- ============================================================= -->
   <!-- MODAL: CASHIER INTERACTIVE FLOOR PLAN / TABLE SELECTOR        -->
   <!-- ============================================================= -->
-  <dialog class="pos-modal" id="modal-table-picker" style="max-width: 680px; width: 92%;">
+  <dialog class="pos-modal" id="modal-table-picker" style="max-width: 880px; width: 95%;">
     <div class="modal-content">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 1.3rem;">🪑</span>
-          <h3 class="modal-title">Select Dining Table</h3>
+          <h3 class="modal-title">Select Dining Table / Floor Plan</h3>
         </div>
-        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-table-picker">✖ Close</button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn-tool btn-sm active" id="btn-cashier-view-canvas">🎨 Floor Plan Map</button>
+          <button type="button" class="btn-tool btn-sm" id="btn-cashier-view-grid">📋 Grid View</button>
+          <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-table-picker">✖ Close</button>
+        </div>
       </div>
 
       <!-- Dining Section Filter Bar -->
       <div id="picker-sections-bar" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;"></div>
 
-      <!-- Floor Plan Grid of Tables -->
-      <div id="picker-tables-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; max-height: 52vh; overflow-y: auto; padding: 4px;"></div>
+      <!-- Cashier Visual Floor Map -->
+      <div id="cashier-canvas-view">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <small style="color: var(--text-muted); font-size: 0.75rem;">
+            👆 <b>Click Available table</b> to seat order. <b>Click Occupied table</b> to view order details & bill out.
+          </small>
+          <span style="font-size: 0.74rem; color: var(--text-muted);">🟢 Available &nbsp; 🔴 Occupied &nbsp; 🔵 Active</span>
+        </div>
+        <div class="floor-canvas-container" id="cashier-floor-canvas-wrap" style="height: 440px;">
+          <div class="floor-canvas-surface" id="cashier-floor-canvas"></div>
+        </div>
+      </div>
+
+      <!-- Floor Plan Grid of Tables (Alternative View) -->
+      <div id="picker-tables-grid" class="hidden" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; max-height: 52vh; overflow-y: auto; padding: 4px;"></div>
 
       <div class="modal-actions" style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center;">
         <button type="button" class="btn-danger-outline btn-sm" id="btn-clear-ticket-table">🚶 Clear Table (Takeout / Counter)</button>
-        <span style="font-size: 0.74rem; color: var(--text-muted);">🟢 Available &nbsp; 🔴 Occupied &nbsp; 🔵 Selected</span>
+        <span style="font-size: 0.74rem; color: var(--text-muted);">Real-time Floor Plan Sync</span>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ============================================================= -->
+  <!-- MODAL: CASHIER TABLE ORDER DETAILS & BILL INSPECTOR           -->
+  <!-- ============================================================= -->
+  <dialog class="pos-modal" id="modal-table-order-details" style="max-width: 520px; width: 92%;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.3rem;">🧾</span>
+            <h3 class="modal-title" id="order-details-table-name">Table 1</h3>
+            <span class="badge" id="order-details-status-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid #ef4444; font-size: 0.72rem;">OCCUPIED</span>
+          </div>
+          <small id="order-details-meta" style="color: var(--text-muted); font-size: 0.75rem;">Main Dining • Seated</small>
+        </div>
+        <button type="button" class="btn-tool btn-danger-outline btn-sm" id="btn-close-table-details">✖</button>
+      </div>
+
+      <!-- Running Bill Total Box -->
+      <div style="background: var(--bg-alt); border: var(--border); border-radius: var(--radius); padding: 12px 16px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <small style="color: var(--text-muted); font-size: 0.74rem; text-transform: uppercase; font-weight: 700;">Running Bill Total</small>
+          <div id="order-details-total" style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">₱0.00</div>
+        </div>
+        <div id="order-details-item-count" class="badge" style="background: var(--bg-card); border: var(--border); color: var(--text); font-size: 0.8rem; padding: 6px 12px;">
+          0 Items
+        </div>
+      </div>
+
+      <!-- Itemized Table Breakdown -->
+      <div style="max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); padding: 4px;">
+        <table class="table-order-items-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th style="width: 50px; text-align: center;">Qty</th>
+              <th style="width: 70px; text-align: right;">Price</th>
+              <th style="width: 80px; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody id="order-details-tbody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Actions Toolbar -->
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <button type="button" class="btn-pay btn-cash" id="btn-table-order-add" style="font-size: 0.85rem; padding: 10px;">
+            🛒 Add More Items
+          </button>
+          <button type="button" class="btn-pay btn-gcash" id="btn-table-order-pay" style="font-size: 0.85rem; padding: 10px;">
+            💳 Bill Out & Pay
+          </button>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: space-between;">
+          <button type="button" class="btn-tool btn-sm" id="btn-table-order-print-bill">
+            🖨️ Print Bill Slip
+          </button>
+          <button type="button" class="btn-danger-outline btn-sm" id="btn-table-order-clear">
+            🧹 Clear Table
+          </button>
+        </div>
       </div>
     </div>
   </dialog>
@@ -2786,9 +2904,11 @@
         <div class="form-group">
           <label for="form-table-shape">Table Shape:</label>
           <select id="form-table-shape" class="form-select">
-            <option value="square" selected>⬛ Square</option>
-            <option value="round">⚪ Round</option>
-            <option value="rectangle">▬ Rectangle / Bench</option>
+            <option value="square" selected>⬛ Square Table</option>
+            <option value="round">⚪ Round Table</option>
+            <option value="rectangle">▬ Rectangle / Bench Table</option>
+            <option value="counter">☕ Service Counter / Bar</option>
+            <option value="wall">🧱 Wall / Divider Element</option>
           </select>
         </div>
       </div>

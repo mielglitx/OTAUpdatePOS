@@ -915,7 +915,14 @@ ${buzzerCallout}
       (async () => {
         try {
           const enabledPrinters = await DB.getEnabledPrinters();
-          const shouldKickDrawer = store.autoOpenDrawer !== false;
+          const localDrawer = localStorage.getItem("pos_auto_open_drawer");
+          let shouldKickDrawer = false;
+          if (localDrawer !== null) {
+            shouldKickDrawer = localDrawer === "true";
+          } else {
+            shouldKickDrawer = store.autoOpenDrawer === true || (store.autoOpenDrawer !== false && store.autoOpenDrawer !== "false");
+          }
+
           const tasks = [Printer.broadcastReceipt(enabledPrinters, receiptTicket)];
           if (shouldKickDrawer) {
             tasks.push(Printer.kickDrawer(enabledPrinters));

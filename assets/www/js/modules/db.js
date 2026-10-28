@@ -397,7 +397,7 @@ export const DB = {
    */
   async getStoreSettings() {
     const settings = await localDB.settings.get("store_settings");
-    return settings || {
+    const defaults = {
       key: "store_settings",
       storeName: "LOKALEX STORE",
       companyName: "Lokalex Delivery Services",
@@ -432,6 +432,7 @@ export const DB = {
       hotspotSharedUsers: "1",
       hotspotAutoPrint: true
     };
+    return { ...defaults, ...(settings || {}) };
   },
 
   async saveStoreSettings(updates) {
@@ -1198,13 +1199,17 @@ export const DB = {
       name: tableData.name || `Table ${id}`,
       section: tableData.section || "Main Dining",
       seats: Number(tableData.seats) || 4,
-      shape: tableData.shape || "square", // square | round | rectangle
+      shape: tableData.shape || "square", // square | round | rectangle | wall | counter
       status: tableData.status || "available", // available | occupied | billed | reserved
-      posX: typeof tableData.posX === "number" ? tableData.posX : 20,
-      posY: typeof tableData.posY === "number" ? tableData.posY : 20,
+      posX: typeof tableData.posX === "number" ? tableData.posX : 30,
+      posY: typeof tableData.posY === "number" ? tableData.posY : 30,
+      width: Number(tableData.width) || 0,
+      height: Number(tableData.height) || 0,
       activeOrderId: tableData.activeOrderId || null,
+      activeOrderItems: Array.isArray(tableData.activeOrderItems) ? tableData.activeOrderItems : [],
       guestCount: Number(tableData.guestCount) || 0,
       orderTotal: Number(tableData.orderTotal) || 0,
+      seatedAt: tableData.seatedAt || null,
       notes: tableData.notes || ""
     };
     await localDB.tables.put(table);
@@ -1222,8 +1227,12 @@ export const DB = {
     if (!table) return null;
     table.status = status;
     if (details.activeOrderId !== undefined) table.activeOrderId = details.activeOrderId;
+    if (details.activeOrderItems !== undefined) table.activeOrderItems = details.activeOrderItems;
     if (details.guestCount !== undefined) table.guestCount = details.guestCount;
     if (details.orderTotal !== undefined) table.orderTotal = details.orderTotal;
+    if (details.seatedAt !== undefined) table.seatedAt = details.seatedAt;
+    if (details.posX !== undefined) table.posX = details.posX;
+    if (details.posY !== undefined) table.posY = details.posY;
     if (details.notes !== undefined) table.notes = details.notes;
     await localDB.tables.put(table);
     return table;
@@ -1234,8 +1243,10 @@ export const DB = {
     if (!table) return null;
     table.status = "available";
     table.activeOrderId = null;
+    table.activeOrderItems = [];
     table.guestCount = 0;
     table.orderTotal = 0;
+    table.seatedAt = null;
     await localDB.tables.put(table);
     return table;
   },

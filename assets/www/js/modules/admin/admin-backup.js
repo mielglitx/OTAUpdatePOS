@@ -199,7 +199,7 @@ export const AdminBackup = {
         DB.instance.categories.count().catch(() => 0),
         DB.instance.users.count().catch(() => 0),
         DB.instance.vouchers.count().catch(() => 0),
-        DB.instance.tables.count().catch(() => 0)
+        DB.instance.table("tables").count().catch(() => 0)
       ]);
 
       if (this.elements.statBackupItemsCount) {
@@ -925,8 +925,8 @@ export const AdminBackup = {
           await DB.saveTableSettings(tableData.settings);
         }
         if (tables.length > 0) {
-          if (isReplace) await DB.instance.tables.clear();
-          await DB.instance.tables.bulkPut(tables);
+          if (isReplace) await DB.instance.table("tables").clear();
+          await DB.instance.table("tables").bulkPut(tables);
           restoredSummary.push(`${tables.length} dining tables`);
           Bus.emit("tables:updated");
         }

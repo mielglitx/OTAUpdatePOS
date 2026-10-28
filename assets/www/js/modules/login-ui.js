@@ -37,22 +37,27 @@ export const LoginUI = {
       numButtons: screen ? screen.querySelectorAll(".btn-num[data-val]") : document.querySelectorAll("#login-screen .btn-num[data-val]")
     };
 
-    // Attach virtual numpad click listeners immediately for instant touch input
+    // Attach virtual numpad click listeners with strict double-tap suppression
+    let lastTapTime = 0;
+    const triggerInput = (fn, e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      const now = Date.now();
+      // Drop synthetic duplicate clicks arriving within 220ms of pointerdown
+      if (now - lastTapTime < 220) return;
+      lastTapTime = now;
+      fn();
+    };
+
     if (this.elements.numButtons && this.elements.numButtons.length > 0) {
       this.elements.numButtons.forEach((btn) => {
-        const handleNumPress = (e) => {
-          if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-          this.appendDigit(btn.dataset.val);
-        };
-        btn.onclick = handleNumPress;
-        // Pointerdown for zero-latency touch response on tablets
+        const val = btn.dataset.val;
+        btn.onclick = (e) => triggerInput(() => this.appendDigit(val), e);
         btn.onpointerdown = (e) => {
           if (e.pointerType === "touch" || e.pointerType === "pen") {
-            e.preventDefault();
-            this.appendDigit(btn.dataset.val);
+            triggerInput(() => this.appendDigit(val), e);
           }
         };
       });
@@ -60,35 +65,19 @@ export const LoginUI = {
 
     // Attach action button listeners
     if (this.elements.btnClear) {
-      const handleClear = (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        this.clearPin();
-      };
-      this.elements.btnClear.onclick = handleClear;
+      this.elements.btnClear.onclick = (e) => triggerInput(() => this.clearPin(), e);
       this.elements.btnClear.onpointerdown = (e) => {
         if (e.pointerType === "touch" || e.pointerType === "pen") {
-          e.preventDefault();
-          this.clearPin();
+          triggerInput(() => this.clearPin(), e);
         }
       };
     }
 
     if (this.elements.btnSubmit) {
-      const handleSubmit = (e) => {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        this.submitLogin();
-      };
-      this.elements.btnSubmit.onclick = handleSubmit;
+      this.elements.btnSubmit.onclick = (e) => triggerInput(() => this.submitLogin(), e);
       this.elements.btnSubmit.onpointerdown = (e) => {
         if (e.pointerType === "touch" || e.pointerType === "pen") {
-          e.preventDefault();
-          this.submitLogin();
+          triggerInput(() => this.submitLogin(), e);
         }
       };
     }

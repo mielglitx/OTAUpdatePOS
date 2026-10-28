@@ -90,6 +90,23 @@ export const DB = {
     this.initPromise = (async () => {
       await localDB.open();
 
+      // Resolve Dexie property collision:
+      // Dexie creates localDB.tables as an internal Array of tables, preventing
+      // localDB.table("tables").count() or .toArray(). We bind methods directly so both
+      // localDB.table("tables") and localDB.tables work seamlessly across all modules.
+      try {
+        const tableStore = localDB.table("tables");
+        if (Array.isArray(localDB.tables)) {
+          localDB.tables.count = () => tableStore.count();
+          localDB.tables.toArray = () => tableStore.toArray();
+          localDB.tables.get = (k) => tableStore.get(k);
+          localDB.tables.put = (item) => tableStore.put(item);
+          localDB.tables.bulkPut = (items) => tableStore.bulkPut(items);
+          localDB.tables.delete = (k) => tableStore.delete(k);
+          localDB.tables.clear = () => tableStore.clear();
+        }
+      } catch (_) {}
+
       // 1. Seed Users if empty
       const userCount = await localDB.users.count();
       if (userCount === 0) {
@@ -304,9 +321,9 @@ export const DB = {
         });
       }
 
-      const tablesCount = await localDB.tables.count();
+      const tablesCount = await localDB.table("tables").count();
       if (tablesCount === 0) {
-        await localDB.tables.bulkPut([
+        await localDB.table("tables").bulkPut([
           { id: "TBL-01", name: "Table 1", section: "Main Dining", seats: 2, shape: "square", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 },
           { id: "TBL-02", name: "Table 2", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 140, posY: 20, activeOrderId: null, guestCount: 0 },
           { id: "TBL-03", name: "Table 3", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 260, posY: 20, activeOrderId: null, guestCount: 0 },
@@ -1207,7 +1224,7 @@ export const DB = {
   },
 
   async getTables(section = null) {
-    const all = await localDB.tables.toArray();
+    const all = await localDB.table("tables").toArray();
     if (section && section !== "all") {
       return all.filter((t) => t.section === section);
     }
@@ -1216,7 +1233,7 @@ export const DB = {
 
   async getTable(id) {
     if (!id) return null;
-    return await localDB.tables.get(id);
+    return await localDB.table("tables").get(id);
   },
 
   async saveTable(tableData) {
@@ -1240,13 +1257,13 @@ export const DB = {
       seatedAt: tableData.seatedAt || null,
       notes: tableData.notes || ""
     };
-    await localDB.tables.put(table);
+    await localDB.table("tables").put(table);
     return table;
   },
 
   async deleteTable(id) {
     if (!id) return false;
-    await localDB.tables.delete(id);
+    await localDB.table("tables").delete(id);
     return true;
   },
 
@@ -1262,7 +1279,7 @@ export const DB = {
     if (details.posX !== undefined) table.posX = details.posX;
     if (details.posY !== undefined) table.posY = details.posY;
     if (details.notes !== undefined) table.notes = details.notes;
-    await localDB.tables.put(table);
+    await localDB.table("tables").put(table);
     return table;
   },
 
@@ -1275,12 +1292,12 @@ export const DB = {
     table.guestCount = 0;
     table.orderTotal = 0;
     table.seatedAt = null;
-    await localDB.tables.put(table);
+    await localDB.table("tables").put(table);
     return table;
   },
 
   async resetTableLayoutTemplate(type = "restaurant") {
-    await localDB.tables.clear();
+    await localDB.table("tables").clear();
     let sections = [];
     let defaultTables = [];
 
@@ -1325,7 +1342,7 @@ export const DB = {
     }
 
     await this.saveTableSettings({ layoutType: type, sections });
-    await localDB.tables.bulkPut(defaultTables.map((t) => ({
+    await localDB.table("tables").bulkPut(defaultTables.map((t) => ({
       ...t,
       activeOrderId: null,
       guestCount: 0,

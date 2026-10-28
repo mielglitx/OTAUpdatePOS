@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show rootBundle, MethodChannel;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -198,15 +198,22 @@ class OtaManager {
       final releaseNotes = (data['body'] as String?)?.trim() ?? 'No changelog provided.';
       final assets = (data['assets'] as List<dynamic>?) ?? [];
 
-      // Find the www.zip asset
+      // Find www.zip and .apk assets
       String? zipDownloadUrl;
       int zipSizeBytes = 0;
+      String? apkDownloadUrl;
+      int apkSizeBytes = 0;
+      String apkName = '';
+
       for (final a in assets) {
         final name = (a['name'] as String?)?.toLowerCase() ?? '';
         if (name == 'www.zip' || name.endsWith('.zip')) {
           zipDownloadUrl = a['browser_download_url'] as String?;
           zipSizeBytes = (a['size'] as num?)?.toInt() ?? 0;
-          break;
+        } else if (name.endsWith('.apk')) {
+          apkDownloadUrl = a['browser_download_url'] as String?;
+          apkSizeBytes = (a['size'] as num?)?.toInt() ?? 0;
+          apkName = (a['name'] as String?) ?? 'app-release.apk';
         }
       }
 
@@ -238,6 +245,10 @@ class OtaManager {
         'sizeBytes': zipSizeBytes,
         'assetSize': zipSizeBytes,
         'assetName': 'www.zip',
+        'hasApk': apkDownloadUrl != null,
+        'apkDownloadUrl': apkDownloadUrl,
+        'apkSizeBytes': apkSizeBytes,
+        'apkName': apkName,
       };
     } catch (e) {
       return {
@@ -339,6 +350,56 @@ class OtaManager {
       return {
         'ok': false,
         'error': 'Extraction or download failure: $e',
+      };
+    }
+  }
+
+  /// Downloads APK from release asset and invokes native package installer
+  static Future<Map<String, dynamic>> downloadAndInstallApk(
+    String downloadUrl,
+    String targetVersion,
+  ) async {
+    try {
+      debugPrint('[APK OTA] Downloading APK from $downloadUrl...');
+      final client = http.Client();
+      final request = http.Request('GET', Uri.parse(downloadUrl));
+      request.headers['User-Agent'] = 'Flutter-POS-OTA-Client';
+      final response = await client.send(request);
+
+      if (response.statusCode != 200) {
+        return {
+          'ok': false,
+          'error': 'Download failed with HTTP ${response.statusCode}',
+        };
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final apkFile = File('${tempDir.path}/app-update.apk');
+      if (await apkFile.exists()) {
+        try { await apkFile.delete(); } catch (_) {}
+      }
+
+      final sink = apkFile.openWrite();
+      await response.stream.pipe(sink);
+      await sink.close();
+
+      debugPrint('[APK OTA] Download complete: ${apkFile.path} (${await apkFile.length()} bytes). Launching Android Installer...');
+
+      const channel = MethodChannel('com.example.pos_app/native_bridge');
+      final res = await channel.invokeMethod<Map<dynamic, dynamic>>('installApk', {
+        'filePath': apkFile.path,
+      });
+
+      return {
+        'ok': res?['ok'] == true,
+        'error': res?['error'],
+        'filePath': apkFile.path,
+      };
+    } catch (e) {
+      debugPrint('[APK OTA Error]: $e');
+      return {
+        'ok': false,
+        'error': 'APK download/install failure: $e',
       };
     }
   }

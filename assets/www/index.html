@@ -1522,9 +1522,14 @@
                 Size: ~1.8 MB • Click Install to apply in background.
               </div>
             </div>
-            <button type="button" class="btn-pay btn-cash" id="btn-apply-ota" style="font-weight: 800; padding: 8px 18px;">
-              ⚡ Install Update & Reload
-            </button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn-pay" id="btn-apply-apk-ota" style="font-weight: 800; padding: 8px 18px; background: #0284c7; color: white;">
+                📲 Install Full APK Update
+              </button>
+              <button type="button" class="btn-pay btn-cash" id="btn-apply-ota" style="font-weight: 800; padding: 8px 18px;">
+                ⚡ Fast Web Update
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -2965,10 +2970,13 @@
         </div>
       </div>
 
-      <div class="modal-actions" id="startup-ota-actions" style="display: flex; gap: 10px; justify-content: center;">
+      <div class="modal-actions" id="startup-ota-actions" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
         <button type="button" class="btn-danger-outline btn-sm" id="btn-startup-ota-skip">Later</button>
-        <button type="button" class="btn-pay btn-cash" id="btn-startup-ota-install" style="font-size: 0.92rem; padding: 10px 24px;">
-          ⚡ Update Now
+        <button type="button" class="btn-pay btn-cash" id="btn-startup-ota-install" style="font-size: 0.92rem; padding: 10px 18px;">
+          ⚡ Fast Web Update
+        </button>
+        <button type="button" class="btn-pay" id="btn-startup-ota-install-apk" style="font-size: 0.92rem; padding: 10px 18px; background: #0284c7; color: white;">
+          📲 Install Full APK Update
         </button>
       </div>
     </div>

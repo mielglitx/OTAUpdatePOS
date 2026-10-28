@@ -165,6 +165,9 @@ export const AdminBackup = {
     if (this.elements.btnApplyOta) {
       this.elements.btnApplyOta.onclick = async () => await this.applyOtaUpdate();
     }
+    if (this.elements.btnApplyApkOta) {
+      this.elements.btnApplyApkOta.onclick = async () => await this.applyApkUpdate();
+    }
     if (this.elements.btnRevertOta) {
       this.elements.btnRevertOta.onclick = async () => await this.revertOtaUpdate();
     }
@@ -380,6 +383,48 @@ export const AdminBackup = {
   /**
    * Downloads and applies the pending OTA update package from GitHub
    */
+  async applyApkUpdate() {
+    if (!this.pendingOtaUpdate || !this.pendingOtaUpdate.apkDownloadUrl) {
+      alert("No APK update package found in this release. You can use Fast Web Update instead.");
+      return;
+    }
+
+    const { apkDownloadUrl, latestVersion, apkSizeBytes } = this.pendingOtaUpdate;
+    const mbText = apkSizeBytes ? ` (${(apkSizeBytes / (1024 * 1024)).toFixed(1)} MB)` : "";
+    const confirmInstall = confirm(
+      `Download and install full APK update ${latestVersion}${mbText}?\n\n` +
+      `The APK binary will download and launch Android's package installer to upgrade the app.\n` +
+      `All local sales, shifts, items, and settings are 100% preserved.`
+    );
+    if (!confirmInstall) return;
+
+    if (this.elements.btnApplyApkOta) {
+      this.elements.btnApplyApkOta.disabled = true;
+      this.elements.btnApplyApkOta.textContent = "⏳ Downloading APK...";
+    }
+    if (this.elements.otaStatusText) {
+      this.elements.otaStatusText.innerHTML = `<em>Downloading full APK update ${latestVersion}${mbText}... Please do not turn off device.</em>`;
+    }
+
+    try {
+      const res = await window.flutter_inappwebview.callHandler("downloadAndInstallApk", apkDownloadUrl, latestVersion);
+      if (res && res.ok) {
+        if (this.elements.otaStatusText) {
+          this.elements.otaStatusText.innerHTML = `<span style="color: #16a34a; font-weight: bold;">✅ APK Downloaded! Launching Android package installer... Tap 'Update' on your screen.</span>`;
+        }
+      } else {
+        alert(`Failed to install APK: ${res?.error || "Unknown installer error"}`);
+      }
+    } catch (err) {
+      alert(`APK update failed: ${err.message}`);
+    } finally {
+      if (this.elements.btnApplyApkOta) {
+        this.elements.btnApplyApkOta.disabled = false;
+        this.elements.btnApplyApkOta.textContent = "📲 Install Full APK Update";
+      }
+    }
+  },
+
   async applyOtaUpdate() {
     if (!this.pendingOtaUpdate || !this.pendingOtaUpdate.downloadUrl) {
       alert("No pending update found. Please check for updates first.");

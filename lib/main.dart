@@ -907,6 +907,20 @@ class _POSContainerState extends State<POSContainer> with WidgetsBindingObserver
               },
             );
 
+            // Bridge 18: Download and Install Full APK Update
+            controller.addJavaScriptHandler(
+              handlerName: 'downloadAndInstallApk',
+              callback: (args) async {
+                try {
+                  final downloadUrl = args[0] as String;
+                  final targetVersion = args[1] as String;
+                  return await OtaManager.downloadAndInstallApk(downloadUrl, targetVersion);
+                } catch (e) {
+                  return {'ok': false, 'error': e.toString()};
+                }
+              },
+            );
+
             // Bridge 16: Download and Apply OTA Update from GitHub Release
             controller.addJavaScriptHandler(
               handlerName: 'performOtaUpdate',

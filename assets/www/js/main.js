@@ -95,7 +95,47 @@ async function checkStartupOtaUpdate() {
     const progressMsg = document.getElementById("startup-ota-progress-msg");
     const actionsBox = document.getElementById("startup-ota-actions");
     const btnInstall = document.getElementById("btn-startup-ota-install");
+    const btnInstallApk = document.getElementById("btn-startup-ota-install-apk");
     const btnSkip = document.getElementById("btn-startup-ota-skip");
+
+    if (btnInstallApk) {
+      if (res.hasApk && res.apkDownloadUrl) {
+        btnInstallApk.classList.remove("hidden");
+        const apkMb = res.apkSizeBytes ? ` (${(res.apkSizeBytes / (1024 * 1024)).toFixed(1)} MB)` : "";
+        btnInstallApk.textContent = `📲 Install APK Update${apkMb}`;
+        btnInstallApk.onclick = async () => {
+          btnInstallApk.disabled = true;
+          if (btnInstall) btnInstall.disabled = true;
+          if (btnSkip) btnSkip.disabled = true;
+          if (progressBox) progressBox.classList.remove("hidden");
+          if (progressMsg) progressMsg.textContent = `Downloading full APK update (${res.latestVersion})... Please wait.`;
+          if (actionsBox) actionsBox.classList.add("hidden");
+
+          try {
+            const apkRes = await window.flutter_inappwebview.callHandler(
+              "downloadAndInstallApk",
+              res.apkDownloadUrl,
+              res.latestVersion
+            );
+
+            if (apkRes && apkRes.ok) {
+              if (progressMsg) {
+                progressMsg.innerHTML = `<span style="color: #16a34a; font-weight: bold;">✅ Download complete! Opening Android Package Installer... Tap 'Update' on your screen.</span>`;
+              }
+              setTimeout(() => modal.close(), 4000);
+            } else {
+              alert(`APK update failed: ${apkRes?.error || "Unknown installer error"}`);
+              modal.close();
+            }
+          } catch (apkErr) {
+            alert(`Could not install APK: ${apkErr.message}`);
+            modal.close();
+          }
+        };
+      } else {
+        btnInstallApk.classList.add("hidden");
+      }
+    }
 
     if (txtVersion) {
       txtVersion.textContent = `${res.latestVersion} (Current: ${res.currentVersion})`;

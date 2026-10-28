@@ -14,6 +14,8 @@ import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.Bundle
+import java.io.File
+import androidx.core.content.FileProvider
 import android.view.Display
 import android.view.ViewGroup
 import android.webkit.WebSettings
@@ -197,6 +199,34 @@ class MainActivity : FlutterActivity() {
                     "checkAutoMountPresentation" -> {
                         autoLaunchCustomerPresentation()
                         result.success(mapOf("ok" to true, "mounted" to (currentPresentation != null)))
+                    }
+                    "installApk" -> {
+                        val filePath = call.argument<String>("filePath")
+                        if (filePath.isNullOrEmpty()) {
+                            result.success(mapOf("ok" to false, "error" to "File path is required"))
+                        } else {
+                            try {
+                                val file = File(filePath)
+                                if (!file.exists()) {
+                                    result.success(mapOf("ok" to false, "error" to "APK file not found: $filePath"))
+                                } else {
+                                    val uri = FileProvider.getUriForFile(
+                                        this@MainActivity,
+                                        "${applicationContext.packageName}.fileprovider",
+                                        file
+                                    )
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(uri, "application/vnd.android.package-archive")
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    startActivity(intent)
+                                    result.success(mapOf("ok" to true))
+                                }
+                            } catch (e: Exception) {
+                                result.success(mapOf("ok" to false, "error" to e.localizedMessage))
+                            }
+                        }
                     }
                     "getDisplayList" -> {
                         val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager

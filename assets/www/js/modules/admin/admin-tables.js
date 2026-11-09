@@ -89,6 +89,11 @@ export const AdminTables = {
       formTableSection: document.getElementById("form-table-section"),
       formTableSeats: document.getElementById("form-table-seats"),
       formTableShape: document.getElementById("form-table-shape"),
+      formTableRotation: document.getElementById("form-table-rotation"),
+      btnRot0: document.getElementById("btn-rot-0"),
+      btnRot45: document.getElementById("btn-rot-45"),
+      btnRot90: document.getElementById("btn-rot-90"),
+      btnRot180: document.getElementById("btn-rot-180"),
       formTableNotes: document.getElementById("form-table-notes"),
       btnSaveTable: document.getElementById("btn-save-table-form"),
       btnCancelTableForm: document.getElementById("btn-cancel-table-form"),
@@ -166,21 +171,26 @@ export const AdminTables = {
       };
     }
 
-    // 5. Basic Shape Palette Buttons (Quick Draw Dining Area)
+    // 5. Basic Shape Palette Buttons (Square Table & Circle Table)
     if (this.elements.btnDrawSquare) {
       this.elements.btnDrawSquare.onclick = () => this.addShape("square");
     }
     if (this.elements.btnDrawRound) {
       this.elements.btnDrawRound.onclick = () => this.addShape("round");
     }
-    if (this.elements.btnDrawRect) {
-      this.elements.btnDrawRect.onclick = () => this.addShape("rectangle");
+
+    // Modal quick rotation angle buttons
+    if (this.elements.btnRot0) {
+      this.elements.btnRot0.onclick = () => { if (this.elements.formTableRotation) this.elements.formTableRotation.value = 0; };
     }
-    if (this.elements.btnDrawCounter) {
-      this.elements.btnDrawCounter.onclick = () => this.addShape("counter");
+    if (this.elements.btnRot45) {
+      this.elements.btnRot45.onclick = () => { if (this.elements.formTableRotation) this.elements.formTableRotation.value = 45; };
     }
-    if (this.elements.btnDrawWall) {
-      this.elements.btnDrawWall.onclick = () => this.addShape("wall");
+    if (this.elements.btnRot90) {
+      this.elements.btnRot90.onclick = () => { if (this.elements.formTableRotation) this.elements.formTableRotation.value = 90; };
+    }
+    if (this.elements.btnRot180) {
+      this.elements.btnRot180.onclick = () => { if (this.elements.formTableRotation) this.elements.formTableRotation.value = 180; };
     }
 
     // 6. Admin View Mode Switchers
@@ -291,17 +301,7 @@ export const AdminTables = {
 
     if (this.elements.btnClearTicketTable) {
       this.elements.btnClearTicketTable.onclick = async () => {
-        const activeTicket = Cart.getActiveTicket();
-        if (activeTicket.tableId) {
-          await DB.setTableStatus(activeTicket.tableId, "available", {
-            activeOrderId: null,
-            orderTotal: 0
-          });
-        }
-        delete activeTicket.tableId;
-        delete activeTicket.tableName;
-        delete activeTicket.tableSection;
-        Cart.notify();
+        Cart.switchToTakeout();
         this.updateCashierBadge();
         if (this.elements.modalTablePicker) this.elements.modalTablePicker.close();
       };
@@ -315,14 +315,9 @@ export const AdminTables = {
     }
 
     if (this.elements.btnTableOrderAdd) {
-      this.elements.btnTableOrderAdd.onclick = () => {
+      this.elements.btnTableOrderAdd.onclick = async () => {
         if (!this.activeDetailTable) return;
-        Cart.loadOrder(
-          this.activeDetailTable.activeOrderItems || [],
-          this.activeDetailTable.id,
-          this.activeDetailTable.name,
-          this.activeDetailTable.section
-        );
+        await Cart.switchToTable(this.activeDetailTable);
         if (this.elements.modalTableOrderDetails) this.elements.modalTableOrderDetails.close();
         if (this.elements.modalTablePicker) this.elements.modalTablePicker.close();
         this.updateCashierBadge();
@@ -330,14 +325,9 @@ export const AdminTables = {
     }
 
     if (this.elements.btnTableOrderPay) {
-      this.elements.btnTableOrderPay.onclick = () => {
+      this.elements.btnTableOrderPay.onclick = async () => {
         if (!this.activeDetailTable) return;
-        Cart.loadOrder(
-          this.activeDetailTable.activeOrderItems || [],
-          this.activeDetailTable.id,
-          this.activeDetailTable.name,
-          this.activeDetailTable.section
-        );
+        await Cart.switchToTable(this.activeDetailTable);
         if (this.elements.modalTableOrderDetails) this.elements.modalTableOrderDetails.close();
         if (this.elements.modalTablePicker) this.elements.modalTablePicker.close();
         this.updateCashierBadge();
@@ -373,6 +363,7 @@ export const AdminTables = {
         if (!this.activeDetailTable) return;
         if (confirm(`Clear and release ${this.activeDetailTable.name}? This will free the table.`)) {
           await DB.clearTable(this.activeDetailTable.id);
+          Cart.closeTableTicket(this.activeDetailTable.id);
           const activeTicket = Cart.getActiveTicket();
           if (activeTicket && activeTicket.tableId === this.activeDetailTable.id) {
             delete activeTicket.tableId;
@@ -382,10 +373,13 @@ export const AdminTables = {
           }
           if (this.elements.modalTableOrderDetails) this.elements.modalTableOrderDetails.close();
           await this.loadData();
-          if (this.elements.modalTablePicker && this.elements.modalTablePicker.open) {
-            if (this.cashierViewMode === "canvas") this.renderCashierCanvas();
-            else this.renderPickerGrid();
+          this.renderPickerSectionsBar();
+          if (this.cashierViewMode === "canvas") {
+            this.renderCashierCanvas();
+          } else {
+            this.renderPickerGrid();
           }
+          this.updateCashierBadge();
         }
       };
     }
@@ -483,9 +477,10 @@ export const AdminTables = {
   /**
    * Adds a basic shape to the dining area with automatic next numbering
    * Places shape directly into the visible canvas area and saves to DB.
-   * @param {string} shape - 'square' | 'round' | 'rectangle' | 'counter' | 'wall'
+   * Only 2 fundamental shapes: square (stretches to rectangle) and round (stretches to oblong).
+   * @param {string} shape - 'square' | 'round'
    */
-  async addShape(shape) {
+  async addShape(shape = "square") {
     let maxNum = 0;
     this.tables.forEach((t) => {
       const match = (t.name || "").match(/\d+/);
@@ -495,20 +490,9 @@ export const AdminTables = {
       }
     });
     const nextNum = maxNum + 1;
-
-    let defaultName = `Table ${nextNum}`;
-    let defaultSeats = 4;
-    if (shape === "counter") {
-      defaultName = `Counter ${nextNum}`;
-      defaultSeats = 2;
-    } else if (shape === "wall") {
-      defaultName = `Wall ${nextNum}`;
-      defaultSeats = 0;
-    } else if (shape === "rectangle") {
-      defaultSeats = 6;
-    } else if (shape === "round") {
-      defaultSeats = 4;
-    }
+    const isRound = shape === "round" || shape === "circle";
+    const defaultName = isRound ? `Circle ${nextNum}` : `Table ${nextNum}`;
+    const defaultSeats = 4;
 
     // Determine smart placement within the canvas viewport
     const wrap = this.elements.adminFloorCanvasWrap;
@@ -529,25 +513,41 @@ export const AdminTables = {
       name: defaultName,
       section: defaultSection,
       seats: defaultSeats,
-      shape: shape,
+      shape: isRound ? "round" : "square",
       status: "available",
       posX: posX,
       posY: posY,
+      width: 90,
+      height: 90,
+      rotation: 0,
       activeOrderId: null,
       orderTotal: 0
     };
 
     await DB.saveTable(newTable);
+    this.selectedCanvasTableId = newTable.id;
     await this.loadData();
   },
 
   /**
    * Renders the 2D Visual Floor Plan Designer Canvas for Admin
-   * Features resilient Window-level drag & drop tracking with 10px snap and touch support.
+   * Features 8-corner resize handles (stretch to rectangle or oblong), rotation handle,
+   * quick rotate button, and drag & drop tracking with snap and touch support.
    */
   renderAdminCanvas() {
     if (!this.elements.adminFloorCanvas) return;
     this.elements.adminFloorCanvas.innerHTML = "";
+
+    // Global background click to deselect active table
+    if (!this._canvasBackgroundClickBound) {
+      this._canvasBackgroundClickBound = true;
+      this.elements.adminFloorCanvas.addEventListener("pointerdown", (e) => {
+        if (e.target === this.elements.adminFloorCanvas) {
+          this.selectedCanvasTableId = null;
+          this.renderAdminCanvas();
+        }
+      });
+    }
 
     let filtered = this.tables;
     if (this.activeSection && this.activeSection !== "all") {
@@ -555,50 +555,57 @@ export const AdminTables = {
     }
 
     filtered.forEach((table) => {
+      const isRound = table.shape === "round" || table.shape === "circle";
       const token = document.createElement("div");
-      token.className = `floor-token floor-token-${table.shape || 'square'} status-${table.status || 'available'}`;
+      const isSelected = this.selectedCanvasTableId === table.id;
+      const isOccupied = table.status === "occupied" || table.status === "billed";
+
+      token.className = `floor-token floor-token-${isRound ? 'round' : 'square'} status-${table.status || 'available'} ${isSelected ? 'table-selected' : ''}`;
       token.dataset.id = table.id;
 
       const posX = typeof table.posX === "number" ? table.posX : 30;
       const posY = typeof table.posY === "number" ? table.posY : 30;
+      const width = typeof table.width === "number" ? table.width : (table.shape === "rectangle" ? 140 : 90);
+      const height = typeof table.height === "number" ? table.height : (table.shape === "rectangle" ? 76 : 90);
+      const rotation = typeof table.rotation === "number" ? table.rotation : 0;
+
       token.style.left = `${posX}px`;
       token.style.top = `${posY}px`;
+      token.style.width = `${width}px`;
+      token.style.height = `${height}px`;
+      token.style.transform = `rotate(${rotation}deg)`;
+      token.style.borderRadius = isRound ? "50%" : "12px";
 
-      // Content based on shape
-      if (table.shape === "wall") {
-        token.innerHTML = `
-          <div style="font-weight: 700; letter-spacing: 0.5px; font-size: 0.72rem; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; height: 100%;">
-            <span>🧱 ${table.name}</span>
-          </div>
-        `;
-      } else if (table.shape === "counter") {
-        token.innerHTML = `
-          <div style="font-size: 0.8rem; font-weight: 800; display: flex; align-items: center; gap: 4px;">
-            <span>☕</span> <span>${table.name}</span>
-          </div>
-          <small style="font-size: 0.65rem; opacity: 0.85;">${table.seats} Seats</small>
-        `;
-      } else {
-        const isOccupied = table.status === "occupied" || table.status === "billed";
-        const statusBadge = isOccupied
-          ? `<span class="badge" style="background: #ef4444; color: #fff; font-size: 0.62rem; padding: 1px 4px; margin-top: 2px;">₱${Number(table.orderTotal || 0).toFixed(0)}</span>`
-          : `<span class="badge" style="background: #22c55e; color: #fff; font-size: 0.62rem; padding: 1px 4px; margin-top: 2px;">${table.seats} 🪑</span>`;
+      const statusBadge = isOccupied
+        ? `<span class="badge" style="background: #ef4444; color: #fff; font-size: 0.62rem; padding: 1px 4px; margin-top: 2px;">₱${Number(table.orderTotal || 0).toFixed(0)}</span>`
+        : `<span class="badge" style="background: #22c55e; color: #fff; font-size: 0.62rem; padding: 1px 4px; margin-top: 2px;">${table.seats} 🪑</span>`;
 
-        token.innerHTML = `
-          <b style="font-size: 0.88rem; line-height: 1.1;">${table.name}</b>
-          ${statusBadge}
-        `;
-      }
+      token.innerHTML = `
+        <b style="font-size: 0.88rem; line-height: 1.1; pointer-events: none;">${table.name}</b>
+        ${statusBadge}
+      `;
 
-      // Quick Delete & Edit Floating Controls on hover/touch
+      // Quick Delete, Edit & Rotate Floating Controls on hover/touch
       const controls = document.createElement("div");
       controls.className = "token-quick-controls";
       controls.style.position = "absolute";
-      controls.style.top = "-10px";
-      controls.style.right = "-10px";
-      controls.style.display = "none";
+      controls.style.top = "-12px";
+      controls.style.right = "-12px";
+      controls.style.display = isSelected ? "flex" : "none";
       controls.style.gap = "4px";
-      controls.style.zIndex = "30";
+      controls.style.zIndex = "45";
+
+      const btnQuickRotate = document.createElement("button");
+      btnQuickRotate.type = "button";
+      btnQuickRotate.innerHTML = "🔄";
+      btnQuickRotate.title = "Rotate 45°";
+      btnQuickRotate.style.cssText = "width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--accent); background: var(--bg-card); font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;";
+      btnQuickRotate.onclick = async (e) => {
+        e.stopPropagation();
+        table.rotation = ((table.rotation || 0) + 45) % 360;
+        await DB.saveTable(table);
+        this.renderAdminCanvas();
+      };
 
       const btnQuickEdit = document.createElement("button");
       btnQuickEdit.type = "button";
@@ -619,30 +626,158 @@ export const AdminTables = {
         e.stopPropagation();
         if (confirm(`Delete ${table.name}?`)) {
           await DB.deleteTable(table.id);
+          this.selectedCanvasTableId = null;
           await this.loadData();
         }
       };
 
+      controls.appendChild(btnQuickRotate);
       controls.appendChild(btnQuickEdit);
       controls.appendChild(btnQuickDel);
       token.appendChild(controls);
 
       token.onmouseenter = () => { controls.style.display = "flex"; };
-      token.onmouseleave = () => { controls.style.display = "none"; };
+      token.onmouseleave = () => { if (!isSelected) controls.style.display = "none"; };
 
       // ============================================================
-      // ROCK-SOLID WINDOW-LEVEL DRAG & DROP POINTER HANDLER
+      // 8-CORNER RESIZE HANDLES & ROTATION HANDLE (IF SELECTED)
+      // ============================================================
+      if (isSelected) {
+        const handlesWrap = document.createElement("div");
+        handlesWrap.className = "table-resize-handles";
+
+        const handlePositions = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+        handlePositions.forEach((pos) => {
+          const h = document.createElement("div");
+          h.className = `resize-handle handle-${pos}`;
+          h.dataset.handle = pos;
+
+          h.onpointerdown = (downEvt) => {
+            downEvt.preventDefault();
+            downEvt.stopPropagation();
+
+            const startX = downEvt.clientX;
+            const startY = downEvt.clientY;
+            const startW = table.width || 90;
+            const startH = table.height || 90;
+            const startL = table.posX || 30;
+            const startT = table.posY || 30;
+            const angleRad = ((table.rotation || 0) * Math.PI) / 180;
+            const cos = Math.cos(angleRad);
+            const sin = Math.sin(angleRad);
+
+            const onMove = (moveEvt) => {
+              const dx = moveEvt.clientX - startX;
+              const dy = moveEvt.clientY - startY;
+              const localX = dx * cos + dy * sin;
+              const localY = -dx * sin + dy * cos;
+
+              let newW = startW;
+              let newH = startH;
+              let dL = 0;
+              let dT = 0;
+
+              if (pos.includes("e")) newW = Math.max(40, Math.min(600, startW + localX));
+              if (pos.includes("w")) {
+                const diff = Math.min(startW - 40, localX);
+                newW = Math.max(40, startW - diff);
+                dL = -diff * cos;
+                dT = -diff * sin;
+              }
+              if (pos.includes("s")) newH = Math.max(40, Math.min(600, startH + localY));
+              if (pos.includes("n")) {
+                const diff = Math.min(startH - 40, localY);
+                newH = Math.max(40, startH - diff);
+                dL += diff * sin;
+                dT += -diff * cos;
+              }
+
+              newW = Math.round(newW / 5) * 5;
+              newH = Math.round(newH / 5) * 5;
+
+              token.style.width = `${newW}px`;
+              token.style.height = `${newH}px`;
+              if (dL !== 0 || dT !== 0) {
+                const finalL = Math.round((startL + dL) / 5) * 5;
+                const finalT = Math.round((startT + dT) / 5) * 5;
+                token.style.left = `${finalL}px`;
+                token.style.top = `${finalT}px`;
+                table.posX = finalL;
+                table.posY = finalT;
+              }
+              table.width = newW;
+              table.height = newH;
+            };
+
+            const onUp = async () => {
+              window.removeEventListener("pointermove", onMove);
+              window.removeEventListener("pointerup", onUp);
+              window.removeEventListener("pointercancel", onUp);
+              await DB.saveTable(table);
+            };
+
+            window.addEventListener("pointermove", onMove, { passive: false });
+            window.addEventListener("pointerup", onUp, { once: true });
+            window.addEventListener("pointercancel", onUp, { once: true });
+          };
+
+          handlesWrap.appendChild(h);
+        });
+
+        // Rotation Handle (Above table center)
+        const rotWrap = document.createElement("div");
+        rotWrap.className = "rotation-handle-wrap";
+        rotWrap.innerHTML = `
+          <div class="rotation-handle" title="Drag to Rotate">🔄</div>
+          <div class="rotation-stem"></div>
+        `;
+
+        const rotHandle = rotWrap.querySelector(".rotation-handle");
+        rotHandle.onpointerdown = (downEvt) => {
+          downEvt.preventDefault();
+          downEvt.stopPropagation();
+
+          const rect = token.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+
+          const onMove = (moveEvt) => {
+            const rad = Math.atan2(moveEvt.clientY - centerY, moveEvt.clientX - centerX);
+            let deg = Math.round((rad * 180 / Math.PI) + 90);
+            if (deg < 0) deg += 360;
+            if (moveEvt.shiftKey) deg = Math.round(deg / 15) * 15;
+            else deg = Math.round(deg / 5) * 5;
+            token.style.transform = `rotate(${deg}deg)`;
+            table.rotation = deg;
+          };
+
+          const onUp = async () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onUp);
+            await DB.saveTable(table);
+          };
+
+          window.addEventListener("pointermove", onMove, { passive: false });
+          window.addEventListener("pointerup", onUp, { once: true });
+          window.addEventListener("pointercancel", onUp, { once: true });
+        };
+
+        handlesWrap.appendChild(rotWrap);
+        token.appendChild(handlesWrap);
+      }
+
+      // ============================================================
+      // DRAG AND DROP POINTER HANDLER ON TABLE BODY
       // ============================================================
       token.onpointerdown = (e) => {
-        // If clicking a quick action button, ignore drag
-        if (e.target.closest("button")) return;
+        if (e.target.closest("button") || e.target.closest(".resize-handle") || e.target.closest(".rotation-handle-wrap")) return;
 
         e.preventDefault();
         e.stopPropagation();
 
         const canvas = this.elements.adminFloorCanvas;
-        const wrap = this.elements.adminFloorCanvasWrap;
-        if (!canvas || !wrap) return;
+        if (!canvas) return;
 
         const tokenRect = token.getBoundingClientRect();
         const offsetX = e.clientX - tokenRect.left;
@@ -667,11 +802,9 @@ export const AdminTables = {
           let newLeft = moveEvt.clientX - canvasRect.left - offsetX;
           let newTop = moveEvt.clientY - canvasRect.top - offsetY;
 
-          // Snap to 10px grid
           newLeft = Math.round(newLeft / 10) * 10;
           newTop = Math.round(newTop / 10) * 10;
 
-          // Bounds clamp within canvas
           newLeft = Math.max(10, Math.min(newLeft, 1100));
           newTop = Math.max(10, Math.min(newTop, 750));
 
@@ -681,7 +814,7 @@ export const AdminTables = {
           table.posY = newTop;
         };
 
-        const onPointerUp = async (upEvt) => {
+        const onPointerUp = async () => {
           window.removeEventListener("pointermove", onPointerMove);
           window.removeEventListener("pointerup", onPointerUp);
           window.removeEventListener("pointercancel", onPointerUp);
@@ -691,8 +824,12 @@ export const AdminTables = {
           if (hasMoved) {
             await DB.saveTable(table);
           } else {
-            // Click / Tap without movement: open modal to edit
-            this.openTableModal(table);
+            if (this.selectedCanvasTableId === table.id) {
+              this.openTableModal(table);
+            } else {
+              this.selectedCanvasTableId = table.id;
+              this.renderAdminCanvas();
+            }
           }
         };
 
@@ -845,17 +982,23 @@ export const AdminTables = {
       if (this.elements.formTableName) this.elements.formTableName.value = table.name || "";
       if (this.elements.formTableSection) this.elements.formTableSection.value = table.section || "Main Dining";
       if (this.elements.formTableSeats) this.elements.formTableSeats.value = table.seats || 4;
-      if (this.elements.formTableShape) this.elements.formTableShape.value = table.shape || "square";
+      if (this.elements.formTableShape) {
+        this.elements.formTableShape.value = (table.shape === "round" || table.shape === "circle") ? "round" : "square";
+      }
+      if (this.elements.formTableRotation) {
+        this.elements.formTableRotation.value = table.rotation || 0;
+      }
       if (this.elements.formTableNotes) this.elements.formTableNotes.value = table.notes || "";
       if (this.elements.btnDeleteTableForm) this.elements.btnDeleteTableForm.classList.remove("hidden");
     } else {
       this.editingTableId = null;
       const nextNum = this.tables.length + 1;
-      if (this.elements.titleModalTableForm) this.elements.titleModalTableForm.textContent = "Add Table / Element";
+      if (this.elements.titleModalTableForm) this.elements.titleModalTableForm.textContent = "Add Table";
       if (this.elements.formTableId) this.elements.formTableId.value = "";
       if (this.elements.formTableName) this.elements.formTableName.value = `Table ${nextNum}`;
       if (this.elements.formTableSeats) this.elements.formTableSeats.value = 4;
       if (this.elements.formTableShape) this.elements.formTableShape.value = "square";
+      if (this.elements.formTableRotation) this.elements.formTableRotation.value = 0;
       if (this.elements.formTableNotes) this.elements.formTableNotes.value = "";
       if (this.elements.btnDeleteTableForm) this.elements.btnDeleteTableForm.classList.add("hidden");
     }
@@ -879,7 +1022,8 @@ export const AdminTables = {
       name,
       section: this.elements.formTableSection ? this.elements.formTableSection.value : "Main Dining",
       seats: Number(this.elements.formTableSeats ? this.elements.formTableSeats.value : 4) || 0,
-      shape: this.elements.formTableShape ? this.elements.formTableShape.value : "square",
+      shape: (this.elements.formTableShape?.value === "round" || this.elements.formTableShape?.value === "circle") ? "round" : "square",
+      rotation: Number(this.elements.formTableRotation ? this.elements.formTableRotation.value : 0) || 0,
       notes: this.elements.formTableNotes ? this.elements.formTableNotes.value.trim() : ""
     };
 
@@ -892,12 +1036,16 @@ export const AdminTables = {
         payload.orderTotal = existing.orderTotal;
         payload.posX = existing.posX;
         payload.posY = existing.posY;
+        payload.width = existing.width || 90;
+        payload.height = existing.height || 90;
         payload.activeOrderItems = existing.activeOrderItems;
         payload.seatedAt = existing.seatedAt;
       }
     } else {
       payload.posX = 40 + ((this.tables.length % 5) * 40);
       payload.posY = 40 + ((this.tables.length % 5) * 35);
+      payload.width = 90;
+      payload.height = 90;
       payload.status = "available";
     }
 
@@ -985,6 +1133,14 @@ export const AdminTables = {
       token.style.left = `${posX}px`;
       token.style.top = `${posY}px`;
 
+      const width = typeof table.width === "number" ? table.width : (table.shape === "rectangle" ? 140 : 90);
+      const height = typeof table.height === "number" ? table.height : (table.shape === "rectangle" ? 76 : 90);
+      const rotation = typeof table.rotation === "number" ? table.rotation : 0;
+      token.style.width = `${width}px`;
+      token.style.height = `${height}px`;
+      token.style.transform = `rotate(${rotation}deg)`;
+      token.style.borderRadius = (table.shape === "round" || table.shape === "circle") ? "50%" : "12px";
+
       if (table.shape === "wall") {
         token.innerHTML = `<span style="font-weight: 700; font-size: 0.7rem; color: #94a3b8;">🧱 ${table.name}</span>`;
         token.style.cursor = "default";
@@ -1070,29 +1226,14 @@ export const AdminTables = {
    * If occupied: opens order inspection details
    */
   async handleCashierTableClick(table) {
-    const activeTicket = Cart.getActiveTicket();
-    const isCurrent = activeTicket && activeTicket.tableId === table.id;
-
     if (table.status === "occupied" || table.status === "billed") {
       // Open Order Details Modal
       this.openOrderDetailsModal(table);
       return;
     }
 
-    // Available table: assign order to table
-    activeTicket.tableId = table.id;
-    activeTicket.tableName = table.name;
-    activeTicket.tableSection = table.section;
-
-    await DB.setTableStatus(table.id, "occupied", {
-      activeOrderId: activeTicket.id,
-      orderTotal: Cart.calculate().total,
-      activeOrderItems: Cart.calculate().items,
-      guestCount: table.seats || 2,
-      seatedAt: Date.now()
-    });
-
-    Cart.notify();
+    // Switch cleanly to isolated table ticket
+    await Cart.switchToTable(table);
     this.updateCashierBadge();
     if (this.elements.modalTablePicker) this.elements.modalTablePicker.close();
   },

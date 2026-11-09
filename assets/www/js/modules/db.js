@@ -1026,6 +1026,16 @@ export const DB = {
       gcashPaymentDate: orderData.gcashPaymentDate || null,
       pagerNumber: orderData.pagerNumber || null,
       voucher: orderData.voucher || null,
+      tableId: orderData.tableId || null,
+      tableName: orderData.tableName || null,
+      tableSection: orderData.tableSection || null,
+      rawTotal: typeof orderData.rawTotal === "number" ? orderData.rawTotal : Math.max(0, Number(orderData.total) || 0.0),
+      discountType: orderData.discountType || "none",
+      discountMethod: orderData.discountMethod || "percent",
+      discountValue: typeof orderData.discountValue === "number" ? orderData.discountValue : 0,
+      discountAmount: typeof orderData.discountAmount === "number" ? orderData.discountAmount : 0,
+      seniorPwdId: orderData.seniorPwdId || null,
+      vatExemptSales: typeof orderData.vatExemptSales === "number" ? orderData.vatExemptSales : 0,
       status: "COMPLETED",
       timestamp: new Date().toISOString(),
       synced: 0
@@ -1368,40 +1378,40 @@ export const DB = {
     if (type === "cafe") {
       sections = ["Main Cafe", "Window Counter", "Terrace"];
       defaultTables = [
-        { id: "TBL-C1", name: "Cafe 1", section: "Main Cafe", seats: 2, shape: "round", status: "available", posX: 30, posY: 30 },
-        { id: "TBL-C2", name: "Cafe 2", section: "Main Cafe", seats: 2, shape: "round", status: "available", posX: 150, posY: 30 },
-        { id: "TBL-C3", name: "Cafe 3", section: "Main Cafe", seats: 4, shape: "square", status: "available", posX: 270, posY: 30 },
-        { id: "TBL-C4", name: "Window 1", section: "Window Counter", seats: 1, shape: "rectangle", status: "available", posX: 30, posY: 30 },
-        { id: "TBL-C5", name: "Window 2", section: "Window Counter", seats: 1, shape: "rectangle", status: "available", posX: 150, posY: 30 },
-        { id: "TBL-C6", name: "Window 3", section: "Window Counter", seats: 1, shape: "rectangle", status: "available", posX: 270, posY: 30 },
-        { id: "TBL-C7", name: "Terrace A", section: "Terrace", seats: 4, shape: "square", status: "available", posX: 30, posY: 30 },
-        { id: "TBL-C8", name: "Terrace B", section: "Terrace", seats: 4, shape: "square", status: "available", posX: 150, posY: 30 }
+        { id: "TBL-C1", name: "Cafe 1", section: "Main Cafe", seats: 2, shape: "round", width: 90, height: 90, rotation: 0, status: "available", posX: 30, posY: 30 },
+        { id: "TBL-C2", name: "Cafe 2", section: "Main Cafe", seats: 2, shape: "round", width: 90, height: 90, rotation: 0, status: "available", posX: 150, posY: 30 },
+        { id: "TBL-C3", name: "Cafe 3", section: "Main Cafe", seats: 4, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 270, posY: 30 },
+        { id: "TBL-C4", name: "Window 1", section: "Window Counter", seats: 1, shape: "square", width: 130, height: 60, rotation: 0, status: "available", posX: 30, posY: 30 },
+        { id: "TBL-C5", name: "Window 2", section: "Window Counter", seats: 1, shape: "square", width: 130, height: 60, rotation: 0, status: "available", posX: 180, posY: 30 },
+        { id: "TBL-C6", name: "Window 3", section: "Window Counter", seats: 1, shape: "square", width: 130, height: 60, rotation: 0, status: "available", posX: 330, posY: 30 },
+        { id: "TBL-C7", name: "Terrace A", section: "Terrace", seats: 4, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 30, posY: 30 },
+        { id: "TBL-C8", name: "Terrace B", section: "Terrace", seats: 4, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 150, posY: 30 }
       ];
     } else if (type === "canteen") {
       sections = ["Canteen Hall A", "Canteen Hall B", "Faculty & Staff"];
       defaultTables = [
-        { id: "TBL-K1", name: "Bench 1", section: "Canteen Hall A", seats: 8, shape: "rectangle", status: "available", posX: 30, posY: 30 },
-        { id: "TBL-K2", name: "Bench 2", section: "Canteen Hall A", seats: 8, shape: "rectangle", status: "available", posX: 200, posY: 30 },
-        { id: "TBL-K3", name: "Bench 3", section: "Canteen Hall A", seats: 8, shape: "rectangle", status: "available", posX: 30, posY: 150 },
-        { id: "TBL-K4", name: "Bench 4", section: "Canteen Hall A", seats: 8, shape: "rectangle", status: "available", posX: 200, posY: 150 },
-        { id: "TBL-K5", name: "Bench 5", section: "Canteen Hall B", seats: 6, shape: "rectangle", status: "available", posX: 30, posY: 30 },
-        { id: "TBL-K6", name: "Bench 6", section: "Canteen Hall B", seats: 6, shape: "rectangle", status: "available", posX: 200, posY: 30 },
-        { id: "TBL-K7", name: "Staff T-1", section: "Faculty & Staff", seats: 4, shape: "square", status: "available", posX: 30, posY: 30 },
-        { id: "TBL-K8", name: "Staff T-2", section: "Faculty & Staff", seats: 4, shape: "square", status: "available", posX: 160, posY: 30 }
+        { id: "TBL-K1", name: "Bench 1", section: "Canteen Hall A", seats: 8, shape: "square", width: 160, height: 70, rotation: 0, status: "available", posX: 30, posY: 30 },
+        { id: "TBL-K2", name: "Bench 2", section: "Canteen Hall A", seats: 8, shape: "square", width: 160, height: 70, rotation: 0, status: "available", posX: 210, posY: 30 },
+        { id: "TBL-K3", name: "Bench 3", section: "Canteen Hall A", seats: 8, shape: "square", width: 160, height: 70, rotation: 0, status: "available", posX: 30, posY: 140 },
+        { id: "TBL-K4", name: "Bench 4", section: "Canteen Hall A", seats: 8, shape: "square", width: 160, height: 70, rotation: 0, status: "available", posX: 210, posY: 140 },
+        { id: "TBL-K5", name: "Bench 5", section: "Canteen Hall B", seats: 6, shape: "square", width: 140, height: 70, rotation: 0, status: "available", posX: 30, posY: 30 },
+        { id: "TBL-K6", name: "Bench 6", section: "Canteen Hall B", seats: 6, shape: "square", width: 140, height: 70, rotation: 0, status: "available", posX: 200, posY: 30 },
+        { id: "TBL-K7", name: "Staff T-1", section: "Faculty & Staff", seats: 4, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 30, posY: 30 },
+        { id: "TBL-K8", name: "Staff T-2", section: "Faculty & Staff", seats: 4, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 160, posY: 30 }
       ];
     } else {
       // Restaurant default
       sections = ["Main Dining", "Patio / Outdoor", "VIP / Function"];
       defaultTables = [
-        { id: "TBL-01", name: "Table 1", section: "Main Dining", seats: 2, shape: "square", status: "available", posX: 30, posY: 30 },
-        { id: "TBL-02", name: "Table 2", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 150, posY: 30 },
-        { id: "TBL-03", name: "Table 3", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 270, posY: 30 },
-        { id: "TBL-04", name: "Table 4", section: "Main Dining", seats: 6, shape: "rectangle", status: "available", posX: 390, posY: 30 },
-        { id: "TBL-05", name: "Table 5", section: "Main Dining", seats: 2, shape: "round", status: "available", posX: 30, posY: 150 },
-        { id: "TBL-06", name: "Table 6", section: "Main Dining", seats: 4, shape: "round", status: "available", posX: 150, posY: 150 },
-        { id: "TBL-07", name: "Table 7", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 30, posY: 30 },
-        { id: "TBL-08", name: "Table 8", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 150, posY: 30 },
-        { id: "TBL-09", name: "VIP Room 1", section: "VIP / Function", seats: 8, shape: "rectangle", status: "available", posX: 30, posY: 30 }
+        { id: "TBL-01", name: "Table 1", section: "Main Dining", seats: 2, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 30, posY: 30 },
+        { id: "TBL-02", name: "Table 2", section: "Main Dining", seats: 4, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 150, posY: 30 },
+        { id: "TBL-03", name: "Table 3", section: "Main Dining", seats: 4, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 270, posY: 30 },
+        { id: "TBL-04", name: "Table 4", section: "Main Dining", seats: 6, shape: "square", width: 140, height: 80, rotation: 0, status: "available", posX: 390, posY: 30 },
+        { id: "TBL-05", name: "Table 5", section: "Main Dining", seats: 2, shape: "round", width: 90, height: 90, rotation: 0, status: "available", posX: 30, posY: 150 },
+        { id: "TBL-06", name: "Table 6", section: "Main Dining", seats: 4, shape: "round", width: 90, height: 90, rotation: 0, status: "available", posX: 150, posY: 150 },
+        { id: "TBL-07", name: "Table 7", section: "Patio / Outdoor", seats: 4, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 30, posY: 30 },
+        { id: "TBL-08", name: "Table 8", section: "Patio / Outdoor", seats: 4, shape: "square", width: 90, height: 90, rotation: 0, status: "available", posX: 150, posY: 30 },
+        { id: "TBL-09", name: "VIP Room 1", section: "VIP / Function", seats: 8, shape: "square", width: 160, height: 90, rotation: 0, status: "available", posX: 30, posY: 30 }
       ];
     }
 

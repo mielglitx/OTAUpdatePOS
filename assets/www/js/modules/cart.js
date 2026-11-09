@@ -312,15 +312,51 @@ export const Cart = {
   },
 
   /**
-   * Computes Philippine statutory 12% VAT-inclusive breakdown and order totals for active ticket
+   * Computes Philippine statutory 12% VAT-inclusive breakdown, discounts, and order totals for active ticket
    * @returns {Object} Calculated ticket breakdown
    */
   calculate() {
-    const total = this.items.reduce((sum, item) => sum + (Number(item.price) || 0) * item.qty, 0);
+    const rawTotal = this.items.reduce((sum, item) => sum + (Number(item.price) || 0) * item.qty, 0);
+    const ticket = this.getActiveTicket();
+    const discount = ticket.discount || { type: "none", mode: "percent", value: 0, amount: 0, seniorId: "" };
 
-    // Republic of the Philippines Standard: Menu prices are VAT-Inclusive (12%)
-    const vatableSales = total / 1.12;
-    const vatAmount = total - vatableSales;
+    let discountAmount = 0;
+    let vatableSales = 0;
+    let vatAmount = 0;
+    let netTotal = rawTotal;
+    let vatExemptSales = 0;
+
+    if (discount.type === "senior") {
+      // Philippine Senior Citizen / PWD Statutory Rule (RA 9994 / RA 10754):
+      // 1. VAT Exemption: Base VAT-exempt price = rawTotal / 1.12
+      // 2. 20% Discount applied to VAT-exempt price (or custom % rate)
+      const baseExempt = rawTotal / 1.12;
+      if (discount.mode === "percent") {
+        const rate = typeof discount.value === "number" ? discount.value : (parseFloat(discount.value) || 20);
+        discountAmount = Number((baseExempt * (rate / 100)).toFixed(2));
+        netTotal = Math.max(0, Number((baseExempt - discountAmount).toFixed(2)));
+      } else {
+        discountAmount = Math.min(rawTotal, Number(discount.value) || 0);
+        netTotal = Math.max(0, Number((rawTotal - discountAmount).toFixed(2)));
+      }
+      vatExemptSales = netTotal;
+      vatableSales = 0;
+      vatAmount = 0;
+    } else if (discount.type === "regular") {
+      if (discount.mode === "percent") {
+        const rate = typeof discount.value === "number" ? discount.value : (parseFloat(discount.value) || 0);
+        discountAmount = Number((rawTotal * (rate / 100)).toFixed(2));
+      } else {
+        discountAmount = Math.min(rawTotal, Number(discount.value) || 0);
+      }
+      netTotal = Math.max(0, Number((rawTotal - discountAmount).toFixed(2)));
+      vatableSales = Number((netTotal / 1.12).toFixed(2));
+      vatAmount = Number((netTotal - vatableSales).toFixed(2));
+    } else {
+      vatableSales = Number((rawTotal / 1.12).toFixed(2));
+      vatAmount = Number((rawTotal - vatableSales).toFixed(2));
+      netTotal = Number(rawTotal.toFixed(2));
+    }
 
     return {
       items: this.items.map((i) => ({
@@ -331,14 +367,144 @@ export const Cart = {
         isMonitored: Boolean(i.isMonitored)
       })),
       itemCount: this.items.reduce((sum, item) => sum + item.qty, 0),
+      rawTotal: Number(rawTotal.toFixed(2)),
+      discount: {
+        type: discount.type || "none",
+        mode: discount.mode || "percent",
+        value: Number(discount.value) || 0,
+        amount: Number(discountAmount.toFixed(2)),
+        seniorId: discount.seniorId || ""
+      },
+      discountAmount: Number(discountAmount.toFixed(2)),
+      vatExemptSales: Number(vatExemptSales.toFixed(2)),
       vatableSales: Number(vatableSales.toFixed(2)),
       vatAmount: Number(vatAmount.toFixed(2)),
-      total: Number(total.toFixed(2)),
-      ticketLabel: this.getActiveTicket().label,
-      tableId: this.getActiveTicket().tableId || null,
-      tableName: this.getActiveTicket().tableName || null,
-      tableSection: this.getActiveTicket().tableSection || null
+      total: Number(netTotal.toFixed(2)),
+      ticketLabel: ticket.label,
+      tableId: ticket.tableId || null,
+      tableName: ticket.tableName || null,
+      tableSection: ticket.tableSection || null
     };
+  },
+
+  /**
+   * Sets or updates active discount on the active ticket
+   * @param {string} type - "none" | "senior" | "regular"
+   * @param {string} mode - "percent" | "fixed"
+   * @param {number} value - percentage or fixed amount
+   * @param {string} seniorId - Senior Citizen / PWD ID or Booklet Number
+   */
+  setDiscount(type = "none", mode = "percent", value = 0, seniorId = "") {
+    const t = this.getActiveTicket();
+    t.discount = {
+      type: type || "none",
+      mode: mode || "percent",
+      value: Number(value) || 0,
+      seniorId: (seniorId || "").trim()
+    };
+    this.notify();
+    this.emitTicketsChanged();
+  },
+
+  /**
+   * Clears discount from active ticket
+   */
+  clearDiscount() {
+    this.setDiscount("none", "percent", 0, "");
+  },
+
+  /**
+   * Switches to a dedicated, isolated ticket for the specified dining table.
+   * If the table already has an active order/items, loads them; otherwise starts with an empty cart.
+   * Ensures different tables NEVER infect or overwrite each other's items!
+   * @param {Object} table
+   */
+  async switchToTable(table) {
+    if (!table || !table.id) return null;
+
+    // 1. Look for existing ticket in this.tickets for this table
+    let tableTicket = this.tickets.find((t) => t.tableId === table.id);
+
+    if (!tableTicket) {
+      // 2. Fetch table from DB to retrieve any existing activeOrderItems
+      let initialItems = [];
+      try {
+        const dbTable = await DB.getTable(table.id);
+        if (dbTable && Array.isArray(dbTable.activeOrderItems) && dbTable.activeOrderItems.length > 0) {
+          initialItems = JSON.parse(JSON.stringify(dbTable.activeOrderItems));
+        }
+      } catch (_) {}
+
+      // If the current ticket is a single empty takeout ticket, adopt it for this table
+      const current = this.getActiveTicket();
+      if (!current.tableId && current.items.length === 0 && this.tickets.length === 1) {
+        tableTicket = current;
+        tableTicket.id = `TICK-TBL-${table.id}`;
+        tableTicket.label = table.name;
+        tableTicket.tableId = table.id;
+        tableTicket.tableName = table.name;
+        tableTicket.tableSection = table.section;
+        tableTicket.items = initialItems;
+      } else {
+        tableTicket = {
+          id: `TICK-TBL-${table.id}`,
+          label: table.name,
+          tableId: table.id,
+          tableName: table.name,
+          tableSection: table.section,
+          items: initialItems,
+          discount: { type: "none", mode: "percent", value: 0, amount: 0, seniorId: "" }
+        };
+        this.tickets.push(tableTicket);
+      }
+    }
+
+    this.activeTicketId = tableTicket.id;
+    this.notify();
+    this.emitTicketsChanged();
+    return tableTicket;
+  },
+
+  /**
+   * Switches from table order to general Takeout / Counter ticket
+   */
+  switchToTakeout() {
+    let takeoutTicket = this.tickets.find((t) => !t.tableId);
+    if (!takeoutTicket) {
+      this.ticketCounter++;
+      takeoutTicket = {
+        id: `TICK-${Date.now().toString().slice(-6)}`,
+        label: `Order ${this.ticketCounter}`,
+        tableId: null,
+        tableName: null,
+        tableSection: null,
+        items: [],
+        discount: { type: "none", mode: "percent", value: 0, amount: 0, seniorId: "" }
+      };
+      this.tickets.push(takeoutTicket);
+    }
+    this.activeTicketId = takeoutTicket.id;
+    this.notify();
+    this.emitTicketsChanged();
+    return takeoutTicket;
+  },
+
+  /**
+   * Removes table order ticket upon checkout completion or bill out
+   * @param {string} tableId 
+   */
+  closeTableTicket(tableId) {
+    const index = this.tickets.findIndex((t) => t.tableId === tableId);
+    if (index !== -1) {
+      const wasActive = this.tickets[index].id === this.activeTicketId;
+      this.tickets.splice(index, 1);
+      if (wasActive || this.tickets.length === 0) {
+        this.switchToTakeout();
+      } else {
+        this.notify();
+        this.emitTicketsChanged();
+      }
+    }
   },
 
   setTable(tableId, tableName, tableSection) {
@@ -351,18 +517,30 @@ export const Cart = {
   },
 
   clearTable() {
-    const t = this.getActiveTicket();
-    delete t.tableId;
-    delete t.tableName;
-    delete t.tableSection;
-    this.notify();
-    this.emitTicketsChanged();
+    this.switchToTakeout();
   },
 
   /**
    * Loads itemized order from a table into the active ticket
    */
   loadOrder(items = [], tableId = null, tableName = null, tableSection = null) {
+    if (tableId) {
+      const existing = this.tickets.find((t) => t.tableId === tableId);
+      if (existing) {
+        existing.items = (items || []).map((i) => ({
+          id: i.id,
+          name: i.name,
+          price: Number(i.price) || 0,
+          qty: Number(i.qty) || 1,
+          isMonitored: Boolean(i.isMonitored)
+        }));
+        this.activeTicketId = existing.id;
+        this.notify();
+        this.emitTicketsChanged();
+        return;
+      }
+    }
+
     const t = this.getActiveTicket();
     t.items = (items || []).map((i) => ({
       id: i.id,

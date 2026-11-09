@@ -885,10 +885,7 @@
             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <span class="label-bold-sm" style="margin-right: 4px;">🎨 Draw Elements:</span>
               <button type="button" class="btn-tool btn-sm" id="btn-draw-square">🟦 + Square Table</button>
-              <button type="button" class="btn-tool btn-sm" id="btn-draw-round">⚪ + Round Table</button>
-              <button type="button" class="btn-tool btn-sm" id="btn-draw-rect">▬ + Rect Table</button>
-              <button type="button" class="btn-tool btn-sm" id="btn-draw-counter">☕ + Counter / Bar</button>
-              <button type="button" class="btn-tool btn-sm" id="btn-draw-wall">🧱 + Wall / Divider</button>
+              <button type="button" class="btn-tool btn-sm" id="btn-draw-round">⚪ + Circle Table</button>
             </div>
             <div style="display: flex; align-items: center; gap: 6px;">
               <button type="button" class="btn-tool btn-sm active" id="btn-tab-view-canvas">🎨 Floor Canvas</button>
@@ -1658,6 +1655,10 @@
         </div>
 
         <div class="ticket-footer">
+          <div class="bill-row" id="cart-discount-row" style="display: none; color: #16a34a; font-weight: 700;">
+            <span id="cart-discount-label">Discount:</span>
+            <span id="cart-discount-val">-₱0.00</span>
+          </div>
           <div class="bill-row"><span>Vatable Sales:</span><span id="txt-subtotal">₱0.00</span></div>
           <div class="bill-row"><span>VAT (12%):</span><span id="txt-tax">₱0.00</span></div>
           <div class="bill-row total-row"><span>Amount Due:</span><span id="txt-total">₱0.00</span></div>
@@ -2449,9 +2450,49 @@
       </div>
 
       <div class="payment-confirm-summary">
+        <div class="bill-row" id="cash-subtotal-row" style="display: none; font-size: 0.9rem; color: var(--text-muted);">
+          <span>Original Total:</span>
+          <span id="cash-subtotal-amount">₱0.00</span>
+        </div>
+        <div class="bill-row bill-row-discount" id="cash-discount-row" style="display: none; font-size: 0.9rem;">
+          <span id="cash-discount-label">Discount:</span>
+          <span id="cash-discount-amount">-₱0.00</span>
+        </div>
         <div class="bill-row">
           <span>Amount Due:</span>
           <b id="cash-due-amount" class="cash-due-label">₱0.00</b>
+        </div>
+      </div>
+
+      <!-- Discount Options (Senior Citizen / PWD & Regular Discount) -->
+      <div class="discount-controls-box" id="cash-discount-controls">
+        <div class="discount-header-row">
+          <span>🏷️ Discount Options:</span>
+          <span id="cash-active-discount-badge" class="badge" style="background: var(--bg-card); color: var(--text-muted); font-size: 0.68rem; border: 1px solid var(--border);">No Discount</span>
+        </div>
+
+        <div class="discount-type-tabs">
+          <button type="button" class="btn-discount-tab active" data-type="none" id="btn-disc-none">None</button>
+          <button type="button" class="btn-discount-tab" data-type="senior" id="btn-disc-senior">👴 Senior / PWD</button>
+          <button type="button" class="btn-discount-tab" data-type="regular" id="btn-disc-regular">🏷️ Regular</button>
+        </div>
+
+        <div class="discount-detail-inputs hidden" id="cash-discount-inputs">
+          <div class="discount-mode-row">
+            <div class="discount-mode-toggle">
+              <button type="button" class="btn-mode-toggle active" data-mode="percent" id="btn-mode-percent">% Percent</button>
+              <button type="button" class="btn-mode-toggle" data-mode="fixed" id="btn-mode-fixed">₱ Fixed</button>
+            </div>
+            <div class="discount-value-input-wrap">
+              <input type="number" id="cash-discount-value" min="0" max="10000" step="any" value="20" class="discount-num-input" />
+              <span id="cash-discount-unit" style="font-weight: 700; font-size: 0.85rem;">%</span>
+            </div>
+            <span class="discount-calc-preview" id="cash-discount-calc-preview">-₱0.00</span>
+          </div>
+
+          <div class="form-group" id="cash-senior-id-group" style="margin: 0;">
+            <input type="text" id="cash-senior-id-input" placeholder="Senior / PWD ID No. or Name (Optional)" class="discount-id-input" />
+          </div>
         </div>
       </div>
 
@@ -2928,12 +2969,20 @@
         <div class="form-group">
           <label for="form-table-shape">Table Shape:</label>
           <select id="form-table-shape" class="form-select">
-            <option value="square" selected>⬛ Square Table</option>
-            <option value="round">⚪ Round Table</option>
-            <option value="rectangle">▬ Rectangle / Bench Table</option>
-            <option value="counter">☕ Service Counter / Bar</option>
-            <option value="wall">🧱 Wall / Divider Element</option>
+            <option value="square" selected>⬛ Square Table (Stretch to Rectangle)</option>
+            <option value="round">⚪ Circle Table (Stretch to Oblong)</option>
           </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 8px;">
+        <label for="form-table-rotation">Rotation Angle (°):</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="number" id="form-table-rotation" min="0" max="360" step="5" value="0" style="width: 80px;" />
+          <button type="button" class="btn-tool btn-sm" id="btn-rot-0">0°</button>
+          <button type="button" class="btn-tool btn-sm" id="btn-rot-45">45°</button>
+          <button type="button" class="btn-tool btn-sm" id="btn-rot-90">90°</button>
+          <button type="button" class="btn-tool btn-sm" id="btn-rot-180">180°</button>
         </div>
       </div>
 

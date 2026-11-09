@@ -64,6 +64,26 @@ export const CheckoutUI = {
       cashPagerGrid: document.getElementById("cash-pager-grid"),
       cashPagerSelectedLabel: document.getElementById("cash-pager-selected-label"),
 
+      // Discount Elements in Cash Modal
+      cashDiscountControls: document.getElementById("cash-discount-controls"),
+      cashActiveDiscountBadge: document.getElementById("cash-active-discount-badge"),
+      cashSubtotalRow: document.getElementById("cash-subtotal-row"),
+      cashSubtotalAmount: document.getElementById("cash-subtotal-amount"),
+      cashDiscountRow: document.getElementById("cash-discount-row"),
+      cashDiscountLabel: document.getElementById("cash-discount-label"),
+      cashDiscountAmount: document.getElementById("cash-discount-amount"),
+      btnDiscNone: document.getElementById("btn-disc-none"),
+      btnDiscSenior: document.getElementById("btn-disc-senior"),
+      btnDiscRegular: document.getElementById("btn-disc-regular"),
+      cashDiscountInputs: document.getElementById("cash-discount-inputs"),
+      btnModePercent: document.getElementById("btn-mode-percent"),
+      btnModeFixed: document.getElementById("btn-mode-fixed"),
+      cashDiscountValue: document.getElementById("cash-discount-value"),
+      cashDiscountUnit: document.getElementById("cash-discount-unit"),
+      cashDiscountCalcPreview: document.getElementById("cash-discount-calc-preview"),
+      cashSeniorIdGroup: document.getElementById("cash-senior-id-group"),
+      cashSeniorIdInput: document.getElementById("cash-senior-id-input"),
+
       // Post-Payment Cash Change Due & Voucher Result Modal Elements
       modalCashChangeResult: document.getElementById("modal-cash-change-result"),
       changeResultAmount: document.getElementById("change-result-amount"),
@@ -209,6 +229,61 @@ export const CheckoutUI = {
 
     if (this.elements.btnFinalizeCash) {
       this.elements.btnFinalizeCash.onclick = () => this.handleCashFinalize(false);
+    }
+
+    // Cash Modal Discount Tabs & Mode Toggles
+    if (this.elements.btnDiscNone) {
+      this.elements.btnDiscNone.onclick = () => {
+        this.currentDiscountState.type = "none";
+        this.applyCashDiscount();
+      };
+    }
+    if (this.elements.btnDiscSenior) {
+      this.elements.btnDiscSenior.onclick = () => {
+        this.currentDiscountState.type = "senior";
+        if (this.currentDiscountState.mode === "percent" && (!this.currentDiscountState.value || this.currentDiscountState.value === 0)) {
+          this.currentDiscountState.value = 20;
+        }
+        this.applyCashDiscount();
+      };
+    }
+    if (this.elements.btnDiscRegular) {
+      this.elements.btnDiscRegular.onclick = () => {
+        this.currentDiscountState.type = "regular";
+        this.applyCashDiscount();
+      };
+    }
+    if (this.elements.btnModePercent) {
+      this.elements.btnModePercent.onclick = () => {
+        this.currentDiscountState.mode = "percent";
+        if (this.currentDiscountState.type === "senior" && (!this.currentDiscountState.value || this.currentDiscountState.value === 0)) {
+          this.currentDiscountState.value = 20;
+        }
+        this.applyCashDiscount();
+      };
+    }
+    if (this.elements.btnModeFixed) {
+      this.elements.btnModeFixed.onclick = () => {
+        this.currentDiscountState.mode = "fixed";
+        this.applyCashDiscount();
+      };
+    }
+    if (this.elements.cashDiscountValue) {
+      this.elements.cashDiscountValue.oninput = () => {
+        this.currentDiscountState.value = parseFloat(this.elements.cashDiscountValue.value) || 0;
+        this.applyCashDiscount();
+      };
+    }
+    if (this.elements.cashSeniorIdInput) {
+      this.elements.cashSeniorIdInput.oninput = () => {
+        this.currentDiscountState.seniorId = this.elements.cashSeniorIdInput.value;
+        Cart.setDiscount(
+          this.currentDiscountState.type,
+          this.currentDiscountState.mode,
+          this.currentDiscountState.value,
+          this.currentDiscountState.seniorId
+        );
+      };
     }
 
     // 5. Post-Payment Cash Change Result Modal Dismissal
@@ -556,6 +631,7 @@ ${store.contactNumber ? `<div class="receipt-center">Tel: ${store.contactNumber}
 <div class="receipt-center"><b>[ CUSTOMER OFFICIAL RECEIPT ]</b></div>
 <div>Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
 <div>Order: ${ticket.orderNumber || "ORD-000000"}</div>
+${ticket.tableName ? `<div>Table: ${ticket.tableName}${ticket.tableSection ? " (" + ticket.tableSection + ")" : ""}</div>` : ''}
 <div>Cashier: ${ticket.cashierName || "Cashier"}</div>
 ${buzzerCallout}
 <div class="receipt-divider">${divider}</div>
@@ -563,6 +639,12 @@ ${buzzerCallout}
 <div class="receipt-divider">${divider}</div>
 <pre class="receipt-items-pre">${itemsHtml}</pre>
 <div class="receipt-divider">${divider}</div>
+${Number(ticket.discountAmount) > 0 ? `
+<div class="receipt-right">Subtotal: ₱${Number(ticket.rawTotal || ticket.total).toFixed(2)}</div>
+<div class="receipt-right">${ticket.discountType === "senior" ? "Senior/PWD Disc" : "Discount"}: -₱${Number(ticket.discountAmount).toFixed(2)}</div>
+${ticket.seniorPwdId ? `<div class="receipt-right">Senior/PWD ID: ${ticket.seniorPwdId}</div>` : ''}
+${Number(ticket.vatExemptSales) > 0 ? `<div class="receipt-right">VAT-Exempt Sales: ₱${Number(ticket.vatExemptSales).toFixed(2)}</div>` : ''}
+` : ''}
 <div class="receipt-right">Vatable Sales: ₱${Number(ticket.vatableSales || 0).toFixed(2)}</div>
 <div class="receipt-right">VAT Amount (12%): ₱${Number(ticket.vatAmount || 0).toFixed(2)}</div>
 <div class="receipt-right receipt-total-line"><b>TOTAL AMOUNT: ₱${Number(ticket.total || 0).toFixed(2)}</b></div>
@@ -675,6 +757,91 @@ ${buzzerCallout}
     });
   },
 
+  currentDiscountState: {
+    type: "none",
+    mode: "percent",
+    value: 20,
+    seniorId: ""
+  },
+
+  applyCashDiscount() {
+    const isNone = this.currentDiscountState.type === "none";
+    const isSenior = this.currentDiscountState.type === "senior";
+    const isRegular = this.currentDiscountState.type === "regular";
+
+    if (this.elements.btnDiscNone) this.elements.btnDiscNone.classList.toggle("active", isNone);
+    if (this.elements.btnDiscSenior) this.elements.btnDiscSenior.classList.toggle("active", isSenior);
+    if (this.elements.btnDiscRegular) this.elements.btnDiscRegular.classList.toggle("active", isRegular);
+
+    if (isNone) {
+      if (this.elements.cashDiscountInputs) this.elements.cashDiscountInputs.classList.add("hidden");
+      if (this.elements.cashSubtotalRow) this.elements.cashSubtotalRow.style.display = "none";
+      if (this.elements.cashDiscountRow) this.elements.cashDiscountRow.style.display = "none";
+      if (this.elements.cashActiveDiscountBadge) {
+        this.elements.cashActiveDiscountBadge.textContent = "No Discount";
+        this.elements.cashActiveDiscountBadge.style.background = "var(--bg-card)";
+        this.elements.cashActiveDiscountBadge.style.color = "var(--text-muted)";
+      }
+      Cart.clearDiscount();
+    } else {
+      if (this.elements.cashDiscountInputs) this.elements.cashDiscountInputs.classList.remove("hidden");
+      const isPercent = this.currentDiscountState.mode === "percent";
+      if (this.elements.btnModePercent) this.elements.btnModePercent.classList.toggle("active", isPercent);
+      if (this.elements.btnModeFixed) this.elements.btnModeFixed.classList.toggle("active", !isPercent);
+      if (this.elements.cashDiscountUnit) this.elements.cashDiscountUnit.textContent = isPercent ? "%" : "₱";
+      if (this.elements.cashSeniorIdGroup) this.elements.cashSeniorIdGroup.classList.toggle("hidden", !isSenior);
+      if (this.elements.cashDiscountValue && document.activeElement !== this.elements.cashDiscountValue) {
+        this.elements.cashDiscountValue.value = this.currentDiscountState.value;
+      }
+      if (this.elements.cashActiveDiscountBadge) {
+        this.elements.cashActiveDiscountBadge.textContent = isSenior ? "👴 Senior / PWD" : "🏷️ Regular Discount";
+        this.elements.cashActiveDiscountBadge.style.background = "var(--accent)";
+        this.elements.cashActiveDiscountBadge.style.color = "#ffffff";
+      }
+
+      Cart.setDiscount(
+        this.currentDiscountState.type,
+        this.currentDiscountState.mode,
+        this.currentDiscountState.value,
+        this.currentDiscountState.seniorId
+      );
+    }
+
+    this.currentBill = Cart.calculate();
+
+    if (!isNone && this.currentBill.discountAmount > 0) {
+      if (this.elements.cashSubtotalRow) {
+        this.elements.cashSubtotalRow.style.display = "flex";
+        if (this.elements.cashSubtotalAmount) {
+          this.elements.cashSubtotalAmount.textContent = `₱${this.currentBill.rawTotal.toFixed(2)}`;
+        }
+      }
+      if (this.elements.cashDiscountRow) {
+        this.elements.cashDiscountRow.style.display = "flex";
+        if (this.elements.cashDiscountLabel) {
+          const modeStr = this.currentDiscountState.mode === "percent" ? `${this.currentDiscountState.value}%` : `₱${this.currentDiscountState.value}`;
+          this.elements.cashDiscountLabel.textContent = isSenior ? `Senior/PWD Discount (${modeStr}):` : `Regular Discount (${modeStr}):`;
+        }
+        if (this.elements.cashDiscountAmount) {
+          this.elements.cashDiscountAmount.textContent = `-₱${this.currentBill.discountAmount.toFixed(2)}`;
+        }
+      }
+      if (this.elements.cashDiscountCalcPreview) {
+        this.elements.cashDiscountCalcPreview.textContent = `-₱${this.currentBill.discountAmount.toFixed(2)}`;
+      }
+    } else {
+      if (this.elements.cashSubtotalRow) this.elements.cashSubtotalRow.style.display = "none";
+      if (this.elements.cashDiscountRow) this.elements.cashDiscountRow.style.display = "none";
+      if (this.elements.cashDiscountCalcPreview) this.elements.cashDiscountCalcPreview.textContent = "-₱0.00";
+    }
+
+    if (this.elements.cashDueAmount) {
+      this.elements.cashDueAmount.textContent = `₱${this.currentBill.total.toFixed(2)}`;
+    }
+
+    this.calculateCashChange();
+  },
+
   async openCashConfirmationModal() {
     const bill = Cart.calculate();
     if (bill.total <= 0) {
@@ -694,8 +861,35 @@ ${buzzerCallout}
       return;
     }
 
+    // In non-fast mode: Sync discount state from active ticket (or default to none)
+    const activeTicket = Cart.getActiveTicket();
+    if (activeTicket && activeTicket.discount && activeTicket.discount.type && activeTicket.discount.type !== "none") {
+      this.currentDiscountState = {
+        type: activeTicket.discount.type,
+        mode: activeTicket.discount.mode || "percent",
+        value: typeof activeTicket.discount.value === "number" ? activeTicket.discount.value : 20,
+        seniorId: activeTicket.discount.seniorId || ""
+      };
+    } else {
+      this.currentDiscountState = {
+        type: "none",
+        mode: "percent",
+        value: 20,
+        seniorId: ""
+      };
+    }
+
+    if (this.elements.cashSeniorIdInput) {
+      this.elements.cashSeniorIdInput.value = this.currentDiscountState.seniorId || "";
+    }
+    if (this.elements.cashDiscountValue) {
+      this.elements.cashDiscountValue.value = this.currentDiscountState.value;
+    }
+
+    this.applyCashDiscount();
+
     if (this.elements.cashDueAmount) {
-      this.elements.cashDueAmount.textContent = `₱${bill.total.toFixed(2)}`;
+      this.elements.cashDueAmount.textContent = `₱${this.currentBill.total.toFixed(2)}`;
     }
 
     if (this.elements.cashTenderedInput) {
@@ -880,7 +1074,14 @@ ${buzzerCallout}
         cashierName: activeCashier.name,
         items: bill.items,
         vatableSales: bill.vatableSales,
+        vatExemptSales: bill.vatExemptSales || 0,
         vatAmount: bill.vatAmount,
+        rawTotal: bill.rawTotal || bill.total,
+        discountType: bill.discount?.type || "none",
+        discountMethod: bill.discount?.mode || "percent",
+        discountValue: bill.discount?.value || 0,
+        discountAmount: bill.discountAmount || 0,
+        seniorPwdId: bill.discount?.seniorId || "",
         total: bill.total,
         paymentType: "CASH",
         amountTendered: tendered,
@@ -907,6 +1108,13 @@ ${buzzerCallout}
         tableId,
         tableName,
         tableSection,
+        rawTotal: bill.rawTotal || bill.total,
+        discountType: bill.discount?.type || "none",
+        discountMethod: bill.discount?.mode || "percent",
+        discountValue: bill.discount?.value || 0,
+        discountAmount: bill.discountAmount || 0,
+        seniorPwdId: bill.discount?.seniorId || "",
+        vatExemptSales: bill.vatExemptSales || 0,
         karinderyaMode: isCompactReceipt,
         karinderyaVoucherOnly: isVoucherOnly
       };
@@ -1018,6 +1226,7 @@ ${buzzerCallout}
           const tableSettings = await DB.getTableSettings();
           if (tableSettings.autoClearOnPayment !== false) {
             await DB.clearTable(tableId);
+            Cart.closeTableTicket(tableId);
             Bus.emit("tables:updated");
           }
         } catch (tblErr) {
@@ -1290,7 +1499,14 @@ ${buzzerCallout}
         cashierName: activeCashier.name,
         items: bill.items,
         vatableSales: bill.vatableSales,
+        vatExemptSales: bill.vatExemptSales || 0,
         vatAmount: bill.vatAmount,
+        rawTotal: bill.rawTotal || bill.total,
+        discountType: bill.discount?.type || "none",
+        discountMethod: bill.discount?.mode || "percent",
+        discountValue: bill.discount?.value || 0,
+        discountAmount: bill.discountAmount || 0,
+        seniorPwdId: bill.discount?.seniorId || "",
         total: bill.total,
         paymentType: "GCASH_DYNAMIC_QR",
         amountTendered: amountPaid,
@@ -1323,6 +1539,13 @@ ${buzzerCallout}
         tableId,
         tableName,
         tableSection,
+        rawTotal: bill.rawTotal || bill.total,
+        discountType: bill.discount?.type || "none",
+        discountMethod: bill.discount?.mode || "percent",
+        discountValue: bill.discount?.value || 0,
+        discountAmount: bill.discountAmount || 0,
+        seniorPwdId: bill.discount?.seniorId || "",
+        vatExemptSales: bill.vatExemptSales || 0,
         karinderyaMode: isCompactReceipt,
         karinderyaVoucherOnly: isVoucherOnly
       };
@@ -1405,6 +1628,7 @@ ${buzzerCallout}
           const tableSettings = await DB.getTableSettings();
           if (tableSettings.autoClearOnPayment !== false) {
             await DB.clearTable(tableId);
+            Cart.closeTableTicket(tableId);
             Bus.emit("tables:updated");
           }
         } catch (tblErr) {

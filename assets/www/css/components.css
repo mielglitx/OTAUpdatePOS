@@ -2241,3 +2241,224 @@ dialog {
   border-bottom: 1px solid var(--border);
   color: var(--text);
 }
+
+/* ==========================================================================
+   TABLE 8-CORNER RESIZE & ROTATION HANDLES (ADMIN 2D CANVAS)
+   ========================================================================== */
+
+.floor-token.table-selected {
+  outline: 2px dashed #0284c7 !important;
+  outline-offset: 2px;
+  z-index: 35 !important;
+}
+
+.table-resize-handles {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 1.5px solid #0284c7;
+  border-radius: 2px;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  touch-action: none;
+}
+
+.resize-handle.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.resize-handle.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.resize-handle.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.resize-handle.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+.resize-handle.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.resize-handle.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.resize-handle.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.resize-handle.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+
+.rotation-handle-wrap {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 42;
+}
+
+.rotation-handle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #0284c7;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: grab;
+  user-select: none;
+}
+
+.rotation-handle:active {
+  cursor: grabbing;
+  background: #0369a1;
+}
+
+.rotation-stem {
+  width: 1.5px;
+  height: 12px;
+  background: #0284c7;
+}
+
+/* ==========================================================================
+   DISCOUNT OPTIONS UI (SENIOR CITIZEN / PWD & REGULAR DISCOUNT)
+   ========================================================================== */
+
+.discount-controls-box {
+  background: var(--bg-alt, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.discount-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.discount-type-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1.3fr;
+  gap: 6px;
+}
+
+.btn-discount-tab {
+  background: var(--bg-card, #ffffff);
+  border: 1.5px solid var(--border, #cbd5e1);
+  color: var(--text, #334155);
+  padding: 7px 4px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.btn-discount-tab:hover {
+  border-color: var(--accent, #0284c7);
+}
+
+.btn-discount-tab.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
+}
+
+.discount-detail-inputs {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.discount-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.discount-mode-toggle {
+  display: flex;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.btn-mode-toggle {
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: none;
+  background: var(--bg-alt, #f1f5f9);
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.btn-mode-toggle.active {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.discount-value-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.discount-num-input {
+  width: 90px;
+  padding: 5px 8px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: right;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 6px;
+  background: var(--bg-card, #ffffff);
+  color: var(--text);
+}
+
+.discount-calc-preview {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #16a34a;
+  margin-left: auto;
+}
+
+.discount-id-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 6px;
+  background: var(--bg-card, #ffffff);
+  color: var(--text);
+  box-sizing: border-box;
+}
+
+.bill-row-discount {
+  color: #16a34a !important;
+  font-weight: 700;
+}
+

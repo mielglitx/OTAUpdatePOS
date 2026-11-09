@@ -410,6 +410,22 @@ export const POS = {
       if (ui.txtNet) ui.txtNet.textContent = `₱${calc.vatableSales.toFixed(2)}`;
       if (ui.txtVat) ui.txtVat.textContent = `₱${calc.vatAmount.toFixed(2)}`;
       if (ui.txtTotal) ui.txtTotal.textContent = `₱${calc.total.toFixed(2)}`;
+
+      // Update Cart Discount Row if applied
+      const discRow = document.getElementById("cart-discount-row");
+      const discLabel = document.getElementById("cart-discount-label");
+      const discVal = document.getElementById("cart-discount-val");
+      if (discRow && discLabel && discVal) {
+        if (calc.discountAmount > 0) {
+          discRow.style.display = "flex";
+          const labelType = calc.discount.type === "senior" ? "Senior/PWD" : "Discount";
+          const labelMode = calc.discount.mode === "percent" ? `(${calc.discount.value}%)` : "(Fixed)";
+          discLabel.textContent = `${labelType} ${labelMode}:`;
+          discVal.textContent = `-₱${calc.discountAmount.toFixed(2)}`;
+        } else {
+          discRow.style.display = "none";
+        }
+      }
     });
   }
 };

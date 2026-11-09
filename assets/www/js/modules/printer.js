@@ -351,9 +351,28 @@ export const Printer = {
     const vatable = typeof ticket.vatableSales === "number" ? ticket.vatableSales : 0;
     const vat = typeof ticket.vatAmount === "number" ? ticket.vatAmount : 0;
     const total = typeof ticket.total === "number" ? ticket.total : 0;
+    const rawTotal = typeof ticket.rawTotal === "number" ? ticket.rawTotal : total;
+    const discountAmount = typeof ticket.discountAmount === "number" ? ticket.discountAmount : 0;
+    const vatExempt = typeof ticket.vatExemptSales === "number" ? ticket.vatExemptSales : 0;
 
-    text(`Vatable Sales: P${vatable.toFixed(2)}\n`);
-    text(`VAT Amount (12%): P${vat.toFixed(2)}\n`);
+    if (discountAmount > 0) {
+      text(`Subtotal: P${rawTotal.toFixed(2)}\n`);
+      const discLabel = ticket.discountType === "senior"
+        ? `Senior/PWD Disc: -P${discountAmount.toFixed(2)}\n`
+        : `Discount: -P${discountAmount.toFixed(2)}\n`;
+      text(discLabel);
+      if (ticket.seniorPwdId) {
+        text(`Senior/PWD ID: ${ticket.seniorPwdId}\n`);
+      }
+      if (vatExempt > 0) {
+        text(`VAT-Exempt Sales: P${vatExempt.toFixed(2)}\n`);
+      }
+    }
+
+    if (vatable > 0 || discountAmount === 0) {
+      text(`Vatable Sales: P${vatable.toFixed(2)}\n`);
+      text(`VAT Amount (12%): P${vat.toFixed(2)}\n`);
+    }
 
     append([0x1B, 0x45, 0x01]);
     text(`TOTAL AMOUNT: P${total.toFixed(2)}\n`);

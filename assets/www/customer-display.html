@@ -1068,9 +1068,8 @@
       };
     }
 
-    // 7. Initial Seed from IndexedDB (with localStorage fast boot fallback)
-    async function loadInitialSettings() {
-      // 1. Fast fallback from localStorage first
+    // 7. Initial Settings from localStorage (live updates received via BroadcastChannel)
+    function loadInitialSettings() {
       try {
         const cachedStore = localStorage.getItem("pos_store_settings");
         if (cachedStore) {
@@ -1087,52 +1086,6 @@
           applyDisplaySettings(JSON.parse(cachedDisplay));
         }
       } catch (_) {}
-
-      // 2. Direct IndexedDB query (retrieves full high-res photos even if localStorage hit quota)
-      try {
-        const req = indexedDB.open("LokalexPOSDB");
-        req.onblocked = () => {};
-        req.onerror = () => {};
-        req.onsuccess = (e) => {
-          const db = e.target.result;
-          // CRITICAL: Close connection immediately on versionchange so main POS migrations are never blocked!
-          db.onversionchange = () => {
-            db.close();
-          };
-
-          if (db.objectStoreNames.contains("settings")) {
-            const tx = db.transaction("settings", "readonly");
-            tx.oncomplete = () => db.close();
-            tx.onerror = () => db.close();
-            tx.onabort = () => db.close();
-
-            const store = tx.objectStore("settings");
-            const getDisplay = store.get("display_settings");
-            getDisplay.onsuccess = () => {
-              if (getDisplay.result) {
-                applyDisplaySettings(getDisplay.result);
-              }
-            };
-            const getStore = store.get("store_settings");
-            getStore.onsuccess = () => {
-              const s = getStore.result;
-              if (s) {
-                if (s.storeName) elements.storeName.textContent = s.storeName;
-                if (s.tagline) elements.tagline.textContent = s.tagline;
-                if (s.logoBase64) {
-                  elements.logo.src = s.logoBase64;
-                  elements.logo.classList.remove("hidden");
-                }
-              }
-            };
-          } else {
-            // Close immediately if settings store does not exist yet on fresh install
-            db.close();
-          }
-        };
-      } catch (err) {
-        console.warn("[Customer Display] IndexedDB direct access error:", err);
-      }
     }
     loadInitialSettings();
   </script>

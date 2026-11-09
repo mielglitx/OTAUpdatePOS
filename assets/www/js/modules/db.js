@@ -75,6 +75,210 @@ localDB.version(10).stores({
   tables: "id, name, section, status, activeOrderId"
 });
 
+// Master seed data for initial bootstrap
+const DEFAULT_USERS = [
+  {
+    id: "USR-001",
+    name: "Amiel (Staff)",
+    pin: "1234",
+    badgeCode: "STAFF-01",
+    role: "user"
+  },
+  {
+    id: "ADM-001",
+    name: "Amiel (Admin)",
+    pin: "8821",
+    badgeCode: "MGR-AUTH-8821",
+    role: "admin"
+  }
+];
+
+const DEFAULT_CATEGORIES = [
+  { id: "all", name: "All Items", image: SVG_CAT_ALL, order: 1, isAddon: false },
+  { id: "beverages", name: "Beverages", image: SVG_CAT_BEV, order: 2, isAddon: false },
+  { id: "meals", name: "Meals", image: SVG_CAT_MEALS, order: 3, isAddon: false },
+  { id: "snacks", name: "Snacks", image: SVG_CAT_SNACKS, order: 4, isAddon: false }
+];
+
+const DEFAULT_PRODUCTS = [
+  {
+    id: "P1",
+    name: "Iced Americano",
+    price: 110.0,
+    cat: "beverages",
+    bc: "1001",
+    image: SVG_PROD_COFFEE,
+    isMonitored: false,
+    stock: 0,
+    threshold: null,
+    isAvailable: true,
+    createdAt: "2026-01-01T08:00:00.000Z"
+  },
+  {
+    id: "P2",
+    name: "Cafe Latte",
+    price: 130.0,
+    cat: "beverages",
+    bc: "1002",
+    image: SVG_PROD_COFFEE,
+    isMonitored: false,
+    stock: 0,
+    threshold: null,
+    isAvailable: true,
+    createdAt: "2026-01-01T08:05:00.000Z"
+  },
+  {
+    id: "P3",
+    name: "Pork Sisig Rice",
+    price: 165.0,
+    cat: "meals",
+    bc: "1003",
+    image: SVG_PROD_MEAL,
+    isMonitored: true,
+    stock: 15,
+    threshold: 5,
+    isAvailable: true,
+    createdAt: "2026-01-01T08:10:00.000Z"
+  },
+  {
+    id: "P4",
+    name: "Choco Crinkles",
+    price: 75.0,
+    cat: "snacks",
+    bc: "1004",
+    image: SVG_PROD_SNACK,
+    isMonitored: true,
+    stock: 24,
+    threshold: 6,
+    isAvailable: true,
+    createdAt: "2026-01-01T08:15:00.000Z"
+  }
+];
+
+const DEFAULT_PRINTERS = [
+  {
+    id: "PRN-001",
+    name: "Cashier Counter Thermal",
+    type: "network",
+    role: "primary",
+    address: "192.168.1.100",
+    port: 9100,
+    paperWidth: "58mm",
+    isBle: false,
+    isEnabled: true
+  }
+];
+
+const DEFAULT_CLOUD_SYNC = {
+  key: "cloud_sync",
+  source: "firebase",
+  firebaseUrl: "",
+  firebaseAuth: "",
+  gasUrl: "",
+  gasSecret: "",
+  lastSync: null
+};
+
+const DEFAULT_STORE_SETTINGS = {
+  key: "store_settings",
+  storeName: "LOKALEX STORE",
+  companyName: "Lokalex Delivery Services",
+  address: "Camiling, Tarlac, Philippines",
+  contactNumber: "0917-123-4567",
+  tagline: "Fast, Fresh & Local Delivery",
+  logoBase64: "",
+  gcashName: "",
+  gcashNumber: "",
+  gcashQrBase64: "",
+  gcashQrPayload: "",
+  useNumberPager: false,
+  pagerCount: 24,
+  defaultInitialCash: 1000.0,
+  karinderyaMode: false,
+  karinderyaAutoCash: true,
+  karinderyaAutoGCash: true,
+  karinderyaCompactReceipt: true,
+  karinderyaSuppressPager: true,
+  karinderyaVoucherOnly: false,
+  hotspotEnabled: false,
+  hotspotRouterIp: "192.168.88.1",
+  hotspotPort: 80,
+  hotspotProtocol: "http",
+  hotspotUsername: "pos-terminal",
+  hotspotPassword: "",
+  hotspotDomain: "hotspot.lokalex.local",
+  hotspotProfile: "pos-customer",
+  hotspotUptime: "2h",
+  hotspotRateLimit: "2M/5M",
+  hotspotSharedUsers: "1",
+  hotspotAutoPrint: true
+};
+
+const DEFAULT_DISPLAY_SETTINGS = {
+  key: "display_settings",
+  layoutPreset: "split",
+  themeMode: "dark",
+  bgColor: "#0f172a",
+  surfaceColor: "#1e293b",
+  accentColor: "#0284c7",
+  textColor: "#f8fafc",
+  textMutedColor: "#94a3b8",
+  fontFamily: "sans",
+  fontSizeScale: "normal",
+  showLogo: true,
+  showTagline: true,
+  customWelcome: "Welcome! Your order details will appear here as items are scanned.",
+  customFooterNote: "Customer Display Terminal • Live Order Mirror",
+  componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"],
+  photoPresentationEnabled: true,
+  photoDisplayMode: "lineup",
+  photoInterval: 5,
+  photoFitMode: "cover",
+  photoLayoutPlacement: "adaptive",
+  photos: []
+};
+
+const DEFAULT_TABLE_SETTINGS = {
+  key: "table_settings",
+  enabled: true,
+  layoutType: "restaurant",
+  sections: ["Main Dining", "Patio / Outdoor", "VIP / Function"],
+  autoClearOnPayment: true,
+  requireTableOnDineIn: false
+};
+
+const DEFAULT_TABLES = [
+  { id: "TBL-01", name: "Table 1", section: "Main Dining", seats: 2, shape: "square", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 },
+  { id: "TBL-02", name: "Table 2", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 140, posY: 20, activeOrderId: null, guestCount: 0 },
+  { id: "TBL-03", name: "Table 3", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 260, posY: 20, activeOrderId: null, guestCount: 0 },
+  { id: "TBL-04", name: "Table 4", section: "Main Dining", seats: 6, shape: "rectangle", status: "available", posX: 380, posY: 20, activeOrderId: null, guestCount: 0 },
+  { id: "TBL-05", name: "Table 5", section: "Main Dining", seats: 2, shape: "round", status: "available", posX: 20, posY: 140, activeOrderId: null, guestCount: 0 },
+  { id: "TBL-06", name: "Table 6", section: "Main Dining", seats: 4, shape: "round", status: "available", posX: 140, posY: 140, activeOrderId: null, guestCount: 0 },
+  { id: "TBL-07", name: "Table 7", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 },
+  { id: "TBL-08", name: "Table 8", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 140, posY: 20, activeOrderId: null, guestCount: 0 },
+  { id: "TBL-09", name: "VIP Room 1", section: "VIP / Function", seats: 8, shape: "rectangle", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 }
+];
+
+// Dexie populate event: fires atomically upon database creation before open() completes
+localDB.on("populate", (trans) => {
+  try {
+    const t = trans || localDB;
+    t.table("users").bulkAdd(DEFAULT_USERS);
+    t.table("categories").bulkAdd(DEFAULT_CATEGORIES);
+    t.table("products").bulkAdd(DEFAULT_PRODUCTS);
+    t.table("printers").bulkAdd(DEFAULT_PRINTERS);
+    t.table("settings").bulkPut([
+      DEFAULT_CLOUD_SYNC,
+      DEFAULT_STORE_SETTINGS,
+      DEFAULT_DISPLAY_SETTINGS,
+      DEFAULT_TABLE_SETTINGS
+    ]);
+    t.table("tables").bulkPut(DEFAULT_TABLES);
+  } catch (err) {
+    console.warn("[DB] populate hook error:", err);
+  }
+});
+
 export const DB = {
   instance: localDB,
   initPromise: null,
@@ -88,252 +292,86 @@ export const DB = {
     }
 
     this.initPromise = (async () => {
-      await localDB.open();
-
-      // Resolve Dexie property collision:
-      // Dexie creates localDB.tables as an internal Array of tables, preventing
-      // localDB.table("tables").count() or .toArray(). We bind methods directly so both
-      // localDB.table("tables") and localDB.tables work seamlessly across all modules.
       try {
-        const tableStore = localDB.table("tables");
-        if (Array.isArray(localDB.tables)) {
-          localDB.tables.count = () => tableStore.count();
-          localDB.tables.toArray = () => tableStore.toArray();
-          localDB.tables.get = (k) => tableStore.get(k);
-          localDB.tables.put = (item) => tableStore.put(item);
-          localDB.tables.bulkPut = (items) => tableStore.bulkPut(items);
-          localDB.tables.delete = (k) => tableStore.delete(k);
-          localDB.tables.clear = () => tableStore.clear();
+        await localDB.open();
+
+        // Resolve Dexie property collision:
+        // Dexie creates localDB.tables as an internal Array of tables, preventing
+        // localDB.table("tables").count() or .toArray(). We bind methods directly so both
+        // localDB.table("tables") and localDB.tables work seamlessly across all modules.
+        try {
+          const tableStore = localDB.table("tables");
+          if (Array.isArray(localDB.tables)) {
+            localDB.tables.count = () => tableStore.count();
+            localDB.tables.toArray = () => tableStore.toArray();
+            localDB.tables.get = (k) => tableStore.get(k);
+            localDB.tables.put = (item) => tableStore.put(item);
+            localDB.tables.bulkPut = (items) => tableStore.bulkPut(items);
+            localDB.tables.delete = (k) => tableStore.delete(k);
+            localDB.tables.clear = () => tableStore.clear();
+          }
+        } catch (_) {}
+
+        // Fallback checks for upgrades or pre-existing databases missing seed records
+        const userCount = await localDB.users.count();
+        if (userCount === 0) {
+          await localDB.users.bulkAdd(DEFAULT_USERS);
         }
-      } catch (_) {}
 
-      // 1. Seed Users if empty
-      const userCount = await localDB.users.count();
-      if (userCount === 0) {
-        await localDB.users.bulkAdd([
-          {
-            id: "USR-001",
-            name: "Amiel (Staff)",
-            pin: "1234",
-            badgeCode: "STAFF-01",
-            role: "user"
-          },
-          {
-            id: "ADM-001",
-            name: "Amiel (Admin)",
-            pin: "8821",
-            badgeCode: "MGR-AUTH-8821",
-            role: "admin"
-          }
-        ]);
-      }
+        const catCount = await localDB.categories.count();
+        if (catCount === 0) {
+          await localDB.categories.bulkAdd(DEFAULT_CATEGORIES);
+        }
 
-      // 2. Seed Categories if empty
-      const catCount = await localDB.categories.count();
-      if (catCount === 0) {
-        await localDB.categories.bulkAdd([
-          { id: "all", name: "All Items", image: SVG_CAT_ALL, order: 1, isAddon: false },
-          { id: "beverages", name: "Beverages", image: SVG_CAT_BEV, order: 2, isAddon: false },
-          { id: "meals", name: "Meals", image: SVG_CAT_MEALS, order: 3, isAddon: false },
-          { id: "snacks", name: "Snacks", image: SVG_CAT_SNACKS, order: 4, isAddon: false }
-        ]);
-      }
-
-      // 3. Seed Products if empty
-      const prodCount = await localDB.products.count();
-      if (prodCount === 0) {
-        await localDB.products.bulkAdd([
-          {
-            id: "P1",
-            name: "Iced Americano",
-            price: 110.0,
-            cat: "beverages",
-            bc: "1001",
-            image: SVG_PROD_COFFEE,
-            isMonitored: false,
-            stock: 0,
-            threshold: null,
-            isAvailable: true,
-            createdAt: "2026-01-01T08:00:00.000Z"
-          },
-          {
-            id: "P2",
-            name: "Cafe Latte",
-            price: 130.0,
-            cat: "beverages",
-            bc: "1002",
-            image: SVG_PROD_COFFEE,
-            isMonitored: false,
-            stock: 0,
-            threshold: null,
-            isAvailable: true,
-            createdAt: "2026-01-01T08:05:00.000Z"
-          },
-          {
-            id: "P3",
-            name: "Pork Sisig Rice",
-            price: 165.0,
-            cat: "meals",
-            bc: "1003",
-            image: SVG_PROD_MEAL,
-            isMonitored: true,
-            stock: 15,
-            threshold: 5,
-            isAvailable: true,
-            createdAt: "2026-01-01T08:10:00.000Z"
-          },
-          {
-            id: "P4",
-            name: "Choco Crinkles",
-            price: 75.0,
-            cat: "snacks",
-            bc: "1004",
-            image: SVG_PROD_SNACK,
-            isMonitored: true,
-            stock: 24,
-            threshold: 6,
-            isAvailable: true,
-            createdAt: "2026-01-01T08:15:00.000Z"
-          }
-        ]);
-      } else {
-        // Migration Sweep: Sanitize existing products that reference missing physical image files
-        const existingProducts = await localDB.products.toArray();
-        for (const prod of existingProducts) {
-          if (prod.image && (prod.image.includes(".png") || prod.image.startsWith("img/"))) {
-            let cleanSvg = SVG_PROD_COFFEE;
-            if (prod.cat === "meals") cleanSvg = SVG_PROD_MEAL;
-            else if (prod.cat === "snacks") cleanSvg = SVG_PROD_SNACK;
-            await localDB.products.update(prod.id, { image: cleanSvg });
+        const prodCount = await localDB.products.count();
+        if (prodCount === 0) {
+          await localDB.products.bulkAdd(DEFAULT_PRODUCTS);
+        } else {
+          // Migration Sweep: Sanitize existing products that reference missing physical image files
+          const existingProducts = await localDB.products.toArray();
+          for (const prod of existingProducts) {
+            if (prod.image && (prod.image.includes(".png") || prod.image.startsWith("img/"))) {
+              let cleanSvg = SVG_PROD_COFFEE;
+              if (prod.cat === "meals") cleanSvg = SVG_PROD_MEAL;
+              else if (prod.cat === "snacks") cleanSvg = SVG_PROD_SNACK;
+              await localDB.products.update(prod.id, { image: cleanSvg });
+            }
           }
         }
-      }
 
-      // 4. Seed Printers if empty
-      const printerCount = await localDB.printers.count();
-      if (printerCount === 0) {
-        await localDB.printers.bulkAdd([
-          {
-            id: "PRN-001",
-            name: "Cashier Counter Thermal",
-            type: "network",
-            role: "primary",
-            address: "192.168.1.100",
-            port: 9100,
-            paperWidth: "58mm",
-            isBle: false,
-            isEnabled: true
-          }
-        ]);
-      }
+        const printerCount = await localDB.printers.count();
+        if (printerCount === 0) {
+          await localDB.printers.bulkAdd(DEFAULT_PRINTERS);
+        }
 
-      // 5. Seed Default Cloud Sync Settings if empty
-      const syncSetting = await localDB.settings.get("cloud_sync");
-      if (!syncSetting) {
-        await localDB.settings.put({
-          key: "cloud_sync",
-          source: "firebase",
-          firebaseUrl: "",
-          firebaseAuth: "",
-          gasUrl: "",
-          gasSecret: "",
-          lastSync: null
-        });
-      }
+        const syncSetting = await localDB.settings.get("cloud_sync");
+        if (!syncSetting) {
+          await localDB.settings.put(DEFAULT_CLOUD_SYNC);
+        }
 
-      // 6. Seed Default Store Profile & MikroTik Settings if empty
-      const storeSetting = await localDB.settings.get("store_settings");
-      if (!storeSetting) {
-        await localDB.settings.put({
-          key: "store_settings",
-          storeName: "LOKALEX STORE",
-          companyName: "Lokalex Delivery Services",
-          address: "Camiling, Tarlac, Philippines",
-          contactNumber: "0917-123-4567",
-          tagline: "Fast, Fresh & Local Delivery",
-          logoBase64: "",
-          gcashName: "",
-          gcashNumber: "",
-          gcashQrBase64: "",
-          gcashQrPayload: "",
-          useNumberPager: false,
-          pagerCount: 24,
-          defaultInitialCash: 1000.0,
-          karinderyaMode: false,
-          karinderyaAutoCash: true,
-          karinderyaAutoGCash: true,
-          karinderyaCompactReceipt: true,
-          karinderyaSuppressPager: true,
-          karinderyaVoucherOnly: false,
-          hotspotEnabled: false,
-          hotspotRouterIp: "192.168.88.1",
-          hotspotPort: 80,
-          hotspotProtocol: "http",
-          hotspotUsername: "pos-terminal",
-          hotspotPassword: "",
-          hotspotDomain: "hotspot.lokalex.local",
-          hotspotProfile: "pos-customer",
-          hotspotUptime: "2h",
-          hotspotRateLimit: "2M/5M",
-          hotspotSharedUsers: "1",
-          hotspotAutoPrint: true
-        });
-      }
+        const storeSetting = await localDB.settings.get("store_settings");
+        if (!storeSetting) {
+          await localDB.settings.put(DEFAULT_STORE_SETTINGS);
+        }
 
-      // 7. Seed Default Secondary Customer Display Settings if empty
-      const displaySetting = await localDB.settings.get("display_settings");
-      if (!displaySetting) {
-        await localDB.settings.put({
-          key: "display_settings",
-          layoutPreset: "split",
-          themeMode: "dark",
-          bgColor: "#0f172a",
-          surfaceColor: "#1e293b",
-          accentColor: "#0284c7",
-          textColor: "#f8fafc",
-          textMutedColor: "#94a3b8",
-          fontFamily: "sans",
-          fontSizeScale: "normal",
-          showLogo: true,
-          showTagline: true,
-          customWelcome: "Welcome! Your order details will appear here as items are scanned.",
-          customFooterNote: "Customer Display Terminal • Live Order Mirror",
-          componentsOrder: ["header", "cart", "bill", "total", "pager", "payment", "footer"],
-          photoPresentationEnabled: true,
-          photoDisplayMode: "lineup",
-          photoInterval: 5,
-          photoFitMode: "cover",
-          photoLayoutPlacement: "adaptive",
-          photos: []
-        });
-      }
+        const displaySetting = await localDB.settings.get("display_settings");
+        if (!displaySetting) {
+          await localDB.settings.put(DEFAULT_DISPLAY_SETTINGS);
+        }
 
-      // 8. Seed Default Table Layout Settings & Tables if empty
-      const tableSetting = await localDB.settings.get("table_settings");
-      if (!tableSetting) {
-        await localDB.settings.put({
-          key: "table_settings",
-          enabled: true,
-          layoutType: "restaurant",
-          sections: ["Main Dining", "Patio / Outdoor", "VIP / Function"],
-          autoClearOnPayment: true,
-          requireTableOnDineIn: false
-        });
-      }
+        const tableSetting = await localDB.settings.get("table_settings");
+        if (!tableSetting) {
+          await localDB.settings.put(DEFAULT_TABLE_SETTINGS);
+        }
 
-      const tablesCount = await localDB.table("tables").count();
-      if (tablesCount === 0) {
-        await localDB.table("tables").bulkPut([
-          { id: "TBL-01", name: "Table 1", section: "Main Dining", seats: 2, shape: "square", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 },
-          { id: "TBL-02", name: "Table 2", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 140, posY: 20, activeOrderId: null, guestCount: 0 },
-          { id: "TBL-03", name: "Table 3", section: "Main Dining", seats: 4, shape: "square", status: "available", posX: 260, posY: 20, activeOrderId: null, guestCount: 0 },
-          { id: "TBL-04", name: "Table 4", section: "Main Dining", seats: 6, shape: "rectangle", status: "available", posX: 380, posY: 20, activeOrderId: null, guestCount: 0 },
-          { id: "TBL-05", name: "Table 5", section: "Main Dining", seats: 2, shape: "round", status: "available", posX: 20, posY: 140, activeOrderId: null, guestCount: 0 },
-          { id: "TBL-06", name: "Table 6", section: "Main Dining", seats: 4, shape: "round", status: "available", posX: 140, posY: 140, activeOrderId: null, guestCount: 0 },
-          { id: "TBL-07", name: "Table 7", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 },
-          { id: "TBL-08", name: "Table 8", section: "Patio / Outdoor", seats: 4, shape: "square", status: "available", posX: 140, posY: 20, activeOrderId: null, guestCount: 0 },
-          { id: "TBL-09", name: "VIP Room 1", section: "VIP / Function", seats: 8, shape: "rectangle", status: "available", posX: 20, posY: 20, activeOrderId: null, guestCount: 0 }
-        ]);
+        const tablesCount = await localDB.table("tables").count();
+        if (tablesCount === 0) {
+          await localDB.table("tables").bulkPut(DEFAULT_TABLES);
+        }
+      } catch (err) {
+        console.error("[DB Init Error]", err);
+        this.initPromise = null;
+        throw err;
       }
     })();
 
@@ -881,52 +919,38 @@ export const DB = {
   },
 
   async authenticateUser(pinOrBadge) {
+    if (pinOrBadge === null || pinOrBadge === undefined) return null;
     const trimmed = String(pinOrBadge).trim();
+    if (!trimmed) return null;
 
-    // 1. Query users table with type-agnostic string comparison
     try {
-      if (!localDB.isOpen()) {
-        await localDB.open().catch(() => {});
+      await this.init();
+
+      // 1. Fast indexed lookup on string pin
+      let user = await localDB.users.where("pin").equals(trimmed).first();
+
+      // 2. Fast indexed lookup on string badgeCode
+      if (!user) {
+        user = await localDB.users.where("badgeCode").equals(trimmed).first();
       }
-      const user = await localDB.users
-        .filter((u) => String(u.pin).trim() === trimmed || String(u.badgeCode).trim() === trimmed)
-        .first();
 
-      if (user) return user;
+      // 3. Fast indexed lookup if pin was stored as number
+      if (!user && !isNaN(Number(trimmed))) {
+        user = await localDB.users.where("pin").equals(Number(trimmed)).first();
+      }
+
+      // 4. Fallback type-agnostic filter sweep for backwards compatibility
+      if (!user) {
+        user = await localDB.users
+          .filter((u) => String(u.pin).trim() === trimmed || String(u.badgeCode).trim() === trimmed)
+          .first();
+      }
+
+      return user || null;
     } catch (err) {
-      console.warn("[DB] authenticateUser table query notice:", err);
+      console.error("[DB] authenticateUser error:", err);
+      return null;
     }
-
-    // 2. Fail-safe master credentials fallback (Guarantees Admin & Staff can NEVER be locked out)
-    if (trimmed === "8821" || trimmed === "MGR-AUTH-8821") {
-      const masterAdmin = {
-        id: "ADM-001",
-        name: "Amiel (Admin)",
-        pin: "8821",
-        badgeCode: "MGR-AUTH-8821",
-        role: "admin"
-      };
-      try {
-        await localDB.users.put(masterAdmin).catch(() => {});
-      } catch (_) {}
-      return masterAdmin;
-    }
-
-    if (trimmed === "1234" || trimmed === "STAFF-01") {
-      const masterStaff = {
-        id: "USR-001",
-        name: "Amiel (Staff)",
-        pin: "1234",
-        badgeCode: "STAFF-01",
-        role: "user"
-      };
-      try {
-        await localDB.users.put(masterStaff).catch(() => {});
-      } catch (_) {}
-      return masterStaff;
-    }
-
-    return null;
   },
 
   async verifyManagerBadge(badgeOrPin) {
